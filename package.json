@@ -1,0 +1,23 @@
+{
+  "name": "pokemon-battle-engine",
+  "version": "1.0.0",
+  "description": "Generation 1 Pokémon Battle Engine",
+  "main": "dist/src/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/src/index.js",
+    "dev": "ts-node src/index.ts"
+  },
+  "keywords": [
+    "pokemon",
+    "battle",
+    "engine",
+    "gen1"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "ts-node": "^10.9.1"
+  }
+}
