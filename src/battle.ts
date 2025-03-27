@@ -1,8 +1,7 @@
-// src/battle.ts
 import { Pokemon } from "./pokemon";
 import { Move } from "./move";
 import { Action } from "./action";
-import { Type, effectiveness } from "../data/types";
+import { Type, getEffectiveness, calculateEffectiveness } from "../data/types";
 import { Species } from "../data/species";
 
 export class Battle {
@@ -187,8 +186,6 @@ export class Battle {
     // Handle fainted Pokémon
     if (attacker.isFainted()) return;
 
-    // We no longer need to handle switching here as it's done before the turn
-
     // Make sure we're dealing with a move action
     if (action.type !== "move") return;
 
@@ -198,19 +195,18 @@ export class Battle {
     // Handle paralysis (25% chance to skip turn in Gen 1)
     if (attacker.status === "paralysis" && Math.random() < 0.25) {
       this.addToLog(`${attacker.species} is paralyzed and can't move!`);
-      return; // Skip turn due to paralysis
+      return; // Skip turn
     }
 
     // Handle sleep
     if (attacker.status === "sleep") {
-      // In Gen 1, sleep lasts 1-7 turns
-      // For simplicity, we'll use a 1/3 chance to wake up each turn
+      // For simplicity, 1/3 chance to wake up each turn
       if (Math.random() < 0.33) {
         attacker.cureStatus();
         this.addToLog(`${attacker.species} woke up!`);
       } else {
         this.addToLog(`${attacker.species} is fast asleep.`);
-        return; // Skip turn due to sleep
+        return; // Skip turn
       }
     }
 
@@ -222,7 +218,7 @@ export class Battle {
         this.addToLog(`${attacker.species} thawed out!`);
       } else {
         this.addToLog(`${attacker.species} is frozen solid!`);
-        return; // Skip turn due to freeze
+        return; // Skip turn
       }
     }
 
@@ -233,11 +229,10 @@ export class Battle {
     const accuracyCheck = Math.random() * 100;
     const moveAccuracy = action.move.accuracy;
 
-    // 1/256 miss bug in Gen 1
+    // 1/256 bug
     const hit = accuracyCheck < moveAccuracy && Math.random() >= 1 / 256;
 
     if (!hit) {
-      // Move missed
       this.addToLog(`${attacker.species}'s attack missed!`);
       return;
     }
@@ -267,14 +262,14 @@ export class Battle {
       );
     }
 
-    // Apply move effects
-    const effectResult = action.move.applyEffect(attacker, defender);
+    // Now apply side-effects (like recoil, explosion, healing).
+    const effectResult = action.move.applyEffect(attacker, defender, damage);
     if (effectResult) {
       this.addToLog(effectResult);
     }
 
     // Handle binding moves
-    if (action.type === "move" && action.move && action.move.effect === 39) {
+    if (action.move.effect === 39) {
       // Binding effect
       if (side === "team1") {
         this.isBound2 = true;
@@ -285,10 +280,9 @@ export class Battle {
       }
     }
 
-    // Handle recharging moves (like Hyper Beam)
-    if (action.type === "move" && action.move && action.move.effect === 64) {
-      // Hyper Beam effect
-      // In Gen 1, if the move KOs the target, no recharge is needed
+    // Handle recharging moves (Hyper Beam)
+    if (action.move.effect === 64) {
+      // If the defender was not fainted, we must recharge
       if (!defender.isFainted()) {
         if (side === "team1") {
           this.isRecharging1 = true;
@@ -304,44 +298,36 @@ export class Battle {
     defender: Pokemon,
     move: Move
   ): number {
-    // Handle special damage moves
+    // Special damage moves
+    // Seismic Toss/Night Shade => damage = attacker.level
+    // Dragon Rage => 40, Sonic Boom => 20, Super Fang => half current HP, etc.
     if (move.effect === 41) {
-      // Special damage effect
-      // Handle moves like Seismic Toss, Night Shade, etc.
       if (move.moveId === 69 || move.moveId === 101) {
         // Seismic Toss or Night Shade
         return attacker.level;
       }
-
-      // Handle Dragon Rage
       if (move.moveId === 82) {
         // Dragon Rage
         return 40;
       }
-
-      // Handle Sonic Boom
       if (move.moveId === 49) {
         // Sonic Boom
         return 20;
       }
-
-      // Handle Super Fang
       if (move.moveId === 162) {
         // Super Fang
         return Math.floor(defender.currentHp / 2);
       }
-
-      // Handle Psywave
       if (move.moveId === 149) {
         // Psywave
+        // "random from 1..(1.5 * level)" approx
         return Math.floor(Math.random() * attacker.level * 1.5);
       }
     }
 
-    // If move has 0 power, it doesn't do damage
+    // If move has 0 power (like status moves), do no direct damage
     if (move.power === 0) return 0;
 
-    // Get the effective attack and defense stats
     const isPhysical = move.category === "physical";
     const attack = isPhysical
       ? attacker.getEffectiveStat("atk")
@@ -350,7 +336,7 @@ export class Battle {
       ? defender.getEffectiveStat("def")
       : defender.getEffectiveStat("spc");
 
-    // Calculate base damage
+    // Base damage
     let baseDamage =
       Math.floor(
         Math.floor(
@@ -358,85 +344,50 @@ export class Battle {
         )
       ) + 2;
 
-    // Critical hit calculation
-    const critChance = attacker.baseStats.spe / 512; // Gen 1 uses base speed
+    // Gen 1 crit uses base Speed, not stat stages
+    const critChance = attacker.baseStats.spe / 512;
     const isCrit = Math.random() < critChance;
-
     if (isCrit) {
-      // In Gen 1, crits use base stats instead of modified stats
+      // In Gen 1, crit doubles final
       baseDamage *= 2;
     }
 
-    // STAB (Same Type Attack Bonus)
+    // STAB if move type matches one of user's types
     const stab =
       attacker.types.type1 === move.type || attacker.types.type2 === move.type
         ? 1.5
         : 1;
 
     // Type effectiveness
-    let typeMultiplier = 1;
+    const typeMultiplier = calculateEffectiveness(defender.types, move.type);
 
-    // Check effectiveness against defender's first type
-    const eff1 = effectiveness(defender.types.type1, move.type);
-    if (eff1 === 0) typeMultiplier *= 2; // Super effective
-    else if (eff1 === 2) typeMultiplier *= 0.5; // Not very effective
-    else if (eff1 === 3) typeMultiplier = 0; // Immune
-
-    // Check effectiveness against defender's second type (if different)
-    if (defender.types.type1 !== defender.types.type2) {
-      const eff2 = effectiveness(defender.types.type2, move.type);
-      if (eff2 === 0) typeMultiplier *= 2; // Super effective
-      else if (eff2 === 2) typeMultiplier *= 0.5; // Not very effective
-      else if (eff2 === 3) typeMultiplier = 0; // Immune
-    }
-
-    // Random factor (217-255 in Gen 1)
+    // Random factor 217-255
     const randomFactor = Math.floor(Math.random() * 39) + 217;
 
-    // Final damage calculation
     let damage = Math.floor(
       baseDamage * stab * typeMultiplier * (randomFactor / 255)
     );
 
-    // Damage is at least 1 unless type immunity
+    // If immune, damage = 0, otherwise at least 1
     return typeMultiplier === 0 ? 0 : Math.max(1, damage);
   }
 
-  // Helper method to get type effectiveness for logging
   private getTypeEffectiveness(defender: Pokemon, move: Move): number {
-    let typeMultiplier = 1;
-
-    // Check effectiveness against defender's first type
-    const eff1 = effectiveness(defender.types.type1, move.type);
-    if (eff1 === 0) typeMultiplier *= 2; // Super effective
-    else if (eff1 === 2) typeMultiplier *= 0.5; // Not very effective
-    else if (eff1 === 3) typeMultiplier = 0; // Immune
-
-    // Check effectiveness against defender's second type (if different)
-    if (defender.types.type1 !== defender.types.type2) {
-      const eff2 = effectiveness(defender.types.type2, move.type);
-      if (eff2 === 0) typeMultiplier *= 2; // Super effective
-      else if (eff2 === 2) typeMultiplier *= 0.5; // Not very effective
-      else if (eff2 === 3) typeMultiplier = 0; // Immune
-    }
-
-    return typeMultiplier;
+    return calculateEffectiveness(defender.types, move.type);
   }
 
   private applyEndOfTurn(): void {
     this.addToLog("--- End of turn effects ---");
 
-    // Apply end of turn effects like burn, poison, leech seed, etc.
-
-    // Handle burn damage (1/8 of max HP in Gen 1)
-    if (this.active1.status === "burn") {
+    // Burn damage
+    if (this.active1.status === "burn" && !this.active1.isFainted()) {
       const damage = Math.floor(this.active1.stats.hp / 8);
       this.active1.applyDamage(damage);
       this.addToLog(
         `${this.active1.species} was hurt by its burn! (${damage} damage)`
       );
     }
-    if (this.active2.status === "burn") {
+    if (this.active2.status === "burn" && !this.active2.isFainted()) {
       const damage = Math.floor(this.active2.stats.hp / 8);
       this.active2.applyDamage(damage);
       this.addToLog(
@@ -444,15 +395,15 @@ export class Battle {
       );
     }
 
-    // Handle poison damage (1/16 of max HP in Gen 1)
-    if (this.active1.status === "poison") {
+    // Poison damage
+    if (this.active1.status === "poison" && !this.active1.isFainted()) {
       const damage = Math.floor(this.active1.stats.hp / 16);
       this.active1.applyDamage(damage);
       this.addToLog(
         `${this.active1.species} was hurt by poison! (${damage} damage)`
       );
     }
-    if (this.active2.status === "poison") {
+    if (this.active2.status === "poison" && !this.active2.isFainted()) {
       const damage = Math.floor(this.active2.stats.hp / 16);
       this.active2.applyDamage(damage);
       this.addToLog(
@@ -460,39 +411,39 @@ export class Battle {
       );
     }
 
-    // Handle leech seed
-    if (this.active1.volatileStatus.includes("leechSeed")) {
+    // Leech Seed
+    if (this.active1.volatileStatus.includes("leechSeed") && !this.active1.isFainted()) {
       const damage = Math.floor(this.active1.stats.hp / 16);
       this.active1.applyDamage(damage);
-      this.active2.heal(damage);
+      if (!this.active2.isFainted()) {
+        this.active2.heal(damage);
+      }
       this.addToLog(
         `${this.active1.species} had its health sapped by Leech Seed! (${damage} damage)`
       );
-      this.addToLog(
-        `${this.active2.species} restored ${damage} HP from Leech Seed!`
-      );
+      this.addToLog(`${this.active2.species} restored ${damage} HP!`);
     }
-    if (this.active2.volatileStatus.includes("leechSeed")) {
+    if (this.active2.volatileStatus.includes("leechSeed") && !this.active2.isFainted()) {
       const damage = Math.floor(this.active2.stats.hp / 16);
       this.active2.applyDamage(damage);
-      this.active1.heal(damage);
+      if (!this.active1.isFainted()) {
+        this.active1.heal(damage);
+      }
       this.addToLog(
         `${this.active2.species} had its health sapped by Leech Seed! (${damage} damage)`
       );
-      this.addToLog(
-        `${this.active1.species} restored ${damage} HP from Leech Seed!`
-      );
+      this.addToLog(`${this.active1.species} restored ${damage} HP!`);
     }
 
-    // Handle binding damage
-    if (this.isBound1) {
+    // Binding moves do some end-of-turn chip
+    if (this.isBound1 && !this.active1.isFainted()) {
       const damage = Math.floor(this.active1.stats.hp / 16);
       this.active1.applyDamage(damage);
       this.addToLog(
         `${this.active1.species} is hurt by the binding move! (${damage} damage)`
       );
     }
-    if (this.isBound2) {
+    if (this.isBound2 && !this.active2.isFainted()) {
       const damage = Math.floor(this.active2.stats.hp / 16);
       this.active2.applyDamage(damage);
       this.addToLog(
@@ -500,7 +451,7 @@ export class Battle {
       );
     }
 
-    // Check if any Pokémon fainted
+    // Check if fainted
     if (this.active1.isFainted()) {
       this.addToLog(`${this.active1.species} fainted!`);
     }
