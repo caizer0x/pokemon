@@ -52,7 +52,9 @@ export function setupWebSocket(server: HttpServer) {
           // AI picks random move if available
           let aiAction: Action = { type: "move", move: null };
           if (currentBattle.active2.moves.length > 0) {
-            const aiIndex = Math.floor(Math.random() * currentBattle.active2.moves.length);
+            const aiIndex = Math.floor(
+              Math.random() * currentBattle.active2.moves.length
+            );
             const aiMove = currentBattle.active2.moves[aiIndex];
             aiAction = { type: "move", move: aiMove };
           }
@@ -61,7 +63,6 @@ export function setupWebSocket(server: HttpServer) {
           handleFaints(currentBattle);
 
           sendFullBattleState(socket, currentBattle);
-
         } else if (msg.action === "switch") {
           // Switch out player's active Pokemon
           const switchIndex = msg.pokemonIndex;
@@ -79,7 +80,11 @@ export function setupWebSocket(server: HttpServer) {
 
           const chosenMon = cbt.team1[switchIndex];
           // Can't switch to fainted or the same as active
-          if (!chosenMon || chosenMon.isFainted() || chosenMon === cbt.active1) {
+          if (
+            !chosenMon ||
+            chosenMon.isFainted() ||
+            chosenMon === cbt.active1
+          ) {
             // ignoring
             return;
           }
@@ -89,7 +94,9 @@ export function setupWebSocket(server: HttpServer) {
           // AI picks random move
           let aiAction: Action = { type: "move", move: null };
           if (cbt.active2.moves.length > 0) {
-            const aiIndex = Math.floor(Math.random() * cbt.active2.moves.length);
+            const aiIndex = Math.floor(
+              Math.random() * cbt.active2.moves.length
+            );
             const aiMove = cbt.active2.moves[aiIndex];
             aiAction = { type: "move", move: aiMove };
           }
@@ -118,20 +125,32 @@ export function setupWebSocket(server: HttpServer) {
 function handleFaints(battle: Battle) {
   // If player's active Pokemon fainted, auto-switch if possible
   if (battle.active1.isFainted()) {
-    const next = battle.team1.find((p) => !p.isFainted() && p !== battle.active1);
+    const next = battle.team1.find(
+      (p) => !p.isFainted() && p !== battle.active1
+    );
     if (next) {
+      const faintedPokemon = battle.active1;
       battle.active1 = next;
       battle.active1.resetStatStages();
       battle.active1.volatileStatus = [];
+      // Log the auto-switch
+      battle.addToLog(`${faintedPokemon.species} fainted!`);
+      battle.addToLog(`Team 1 sent out ${next.species}!`);
     }
   }
   // If AI's active Pokemon fainted, auto-switch if possible
   if (battle.active2.isFainted()) {
-    const next = battle.team2.find((p) => !p.isFainted() && p !== battle.active2);
+    const next = battle.team2.find(
+      (p) => !p.isFainted() && p !== battle.active2
+    );
     if (next) {
+      const faintedPokemon = battle.active2;
       battle.active2 = next;
       battle.active2.resetStatStages();
       battle.active2.volatileStatus = [];
+      // Log the auto-switch
+      battle.addToLog(`${faintedPokemon.species} fainted!`);
+      battle.addToLog(`Team 2 sent out ${next.species}!`);
     }
   }
 }
@@ -153,7 +172,7 @@ function sendFullBattleState(socket: any, battle: Battle) {
       maxHp: p.stats.hp,
       level: p.level,
       fainted: p.isFainted(),
-      status: p.status
+      status: p.status,
     })),
     team2: battle.team2.map((p) => ({
       species: p.species,
@@ -161,7 +180,7 @@ function sendFullBattleState(socket: any, battle: Battle) {
       maxHp: p.stats.hp,
       level: p.level,
       fainted: p.isFainted(),
-      status: p.status
+      status: p.status,
     })),
     active1: {
       species: battle.active1.species,
@@ -174,8 +193,8 @@ function sendFullBattleState(socket: any, battle: Battle) {
         name: m.name,
         power: m.power,
         accuracy: m.accuracy,
-        type: m.type
-      }))
+        type: m.type,
+      })),
     },
     active2: {
       species: battle.active2.species,
@@ -183,12 +202,13 @@ function sendFullBattleState(socket: any, battle: Battle) {
       maxHp: battle.active2.stats.hp,
       level: battle.active2.level,
       fainted: battle.active2.isFainted(),
-      status: battle.active2.status
+      status: battle.active2.status,
       // Typically hide the AI moves from the player
     },
     active1Index,
     active2Index,
-    turnCount: battle.turnCount
+    turnCount: battle.turnCount,
+    battleLog: battle.battleLog, // Include the battle log
   };
 
   socket.send(JSON.stringify(data));

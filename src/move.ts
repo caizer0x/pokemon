@@ -30,16 +30,16 @@ export class Move {
     this.category = special(moveData.type) ? "special" : "physical";
   }
 
-  applyEffect(attacker: any, defender: any): void {
+  applyEffect(attacker: any, defender: any): string | null {
     // Implementation will depend on the specific effect
     // This is a simplified version that handles some common effects
 
-    if (!this.effect) return;
+    if (!this.effect) return null;
 
     // Handle status effects
     if (this.effect === Effect.Poison) {
       defender.setStatus("poison");
-      console.log(`${defender.species} was poisoned!`);
+      return `${defender.species} was poisoned!`;
     } else if (
       this.effect === Effect.BurnChance1 ||
       this.effect === Effect.BurnChance2
@@ -47,7 +47,7 @@ export class Move {
       if (Math.random() < 0.3) {
         // Simplified chance
         defender.setStatus("burn");
-        console.log(`${defender.species} was burned!`);
+        return `${defender.species} was burned!`;
       }
     } else if (
       this.effect === Effect.ParalyzeChance1 ||
@@ -56,40 +56,49 @@ export class Move {
       if (Math.random() < 0.3) {
         // Simplified chance
         defender.setStatus("paralysis");
-        console.log(`${defender.species} was paralyzed!`);
+        return `${defender.species} was paralyzed!`;
       }
     } else if (this.effect === Effect.Sleep) {
       defender.setStatus("sleep");
-      console.log(`${defender.species} fell asleep!`);
+      return `${defender.species} fell asleep!`;
     } else if (this.effect === Effect.FreezeChance) {
       if (Math.random() < 0.1) {
         // Simplified chance
         defender.setStatus("freeze");
-        console.log(`${defender.species} was frozen solid!`);
+        return `${defender.species} was frozen solid!`;
       }
     } else if (this.effect === Effect.Confusion) {
       defender.addVolatileStatus("confusion");
+      return `${defender.species} became confused!`;
     } else if (this.effect === Effect.LeechSeed) {
       defender.addVolatileStatus("leechSeed");
+      return `${defender.species} was seeded!`;
     }
 
     // Handle stat changes
     // These would need to be implemented in the Pokemon class
     if (this.effect === Effect.AttackDown1) {
       defender.modifyStat("atk", -1);
+      return `${defender.species}'s Attack fell!`;
     } else if (this.effect === Effect.DefenseDown1) {
       defender.modifyStat("def", -1);
+      return `${defender.species}'s Defense fell!`;
     } else if (this.effect === Effect.SpeedDown1) {
       defender.modifyStat("spe", -1);
+      return `${defender.species}'s Speed fell!`;
     } else if (this.effect === Effect.AttackUp1) {
       attacker.modifyStat("atk", 1);
+      return `${attacker.species}'s Attack rose!`;
     } else if (this.effect === Effect.DefenseUp1) {
       attacker.modifyStat("def", 1);
+      return `${attacker.species}'s Defense rose!`;
     } else if (this.effect === Effect.SpecialUp1) {
       attacker.modifyStat("spc", 1);
+      return `${attacker.species}'s Special rose!`;
     }
 
     // More effects would be implemented here
+    return null;
   }
 
   // Get the PP of the move

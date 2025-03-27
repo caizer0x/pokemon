@@ -31,6 +31,7 @@ interface BattleState {
   active1Index: number;
   active2Index: number;
   turnCount: number;
+  battleLog?: string[]; // Add battle log
 }
 
 interface BattlePageProps {
@@ -63,6 +64,7 @@ const BattlePage: React.FC<BattlePageProps> = ({
     isOver,
     winner,
     turnCount,
+    battleLog = [], // Default to empty array if not provided
   } = battleState;
 
   const handleMove = (moveIndex: number) => {
@@ -166,6 +168,28 @@ const BattlePage: React.FC<BattlePageProps> = ({
           <div className="flex justify-center">
             <PokemonCard pokemon={active2} />
           </div>
+        </div>
+      </div>
+
+      {/* Battle Log Section */}
+      <div className="mt-8 bg-white rounded-lg shadow-md p-4">
+        <h3 className="text-lg font-bold mb-3 border-b border-gray-200 pb-2">
+          Battle Log
+        </h3>
+        <div className="bg-gray-100 p-3 rounded-lg h-64 overflow-y-auto">
+          {battleLog.length === 0 ? (
+            <p className="text-gray-500 italic text-center">
+              Battle log will appear here...
+            </p>
+          ) : (
+            <ul className="space-y-1">
+              {battleLog.map((message, index) => (
+                <li key={index} className="text-sm">
+                  {message}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
 

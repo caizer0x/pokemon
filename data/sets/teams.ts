@@ -176,6 +176,33 @@ export class RandomTeamGenerator {
         }
       }
 
+      // Ensure each Pokémon has 4 moves by adding common moves
+      // Define a list of common moves to fill in empty slots
+      const commonMoves = [
+        MoveEnum.Tackle,
+        MoveEnum.Growl,
+        MoveEnum.TailWhip,
+        MoveEnum.Scratch,
+        MoveEnum.QuickAttack,
+        MoveEnum.Pound,
+        MoveEnum.Leer,
+      ].filter((move) => move !== undefined);
+
+      // Fill remaining slots with common moves
+      while (selectedMoves.length < 4 && commonMoves.length > 0) {
+        // Get a random common move
+        const randomIndex = Math.floor(this.prng.next(commonMoves.length));
+        const commonMove = commonMoves[randomIndex];
+
+        // Only add if not already in the selected moves
+        if (!selectedMoves.includes(commonMove)) {
+          selectedMoves.push(commonMove);
+        }
+
+        // Remove this move from the pool to avoid trying it again
+        commonMoves.splice(randomIndex, 1);
+      }
+
       // Create Move objects
       const moveObjects = selectedMoves.map((moveEnum) => new Move(moveEnum));
 
