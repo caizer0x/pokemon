@@ -33,10 +33,9 @@ export function setupWebSocket(server: HttpServer) {
 
         const currentBattle = battles.get(id)!;
 
-        // Only action we handle is "move" with moveIndex
+        // Handle "move" action
         if (msg.action === "move") {
           const moveIndex = msg.moveIndex;
-          // Validate
           if (
             moveIndex == null ||
             moveIndex < 0 ||
@@ -46,24 +45,59 @@ export function setupWebSocket(server: HttpServer) {
             return;
           }
 
-          // The player's chosen move
+          // Player's chosen move
           const playerMove = currentBattle.active1.moves[moveIndex];
           const playerAction: Action = { type: "move", move: playerMove };
 
-          // AI picks random move
+          // AI picks random move if available
+          let aiAction: Action = { type: "move", move: null };
           if (currentBattle.active2.moves.length > 0) {
             const aiIndex = Math.floor(Math.random() * currentBattle.active2.moves.length);
             const aiMove = currentBattle.active2.moves[aiIndex];
-            const aiAction: Action = { type: "move", move: aiMove };
-
-            currentBattle.turn(playerAction, aiAction);
-
-            // Check if AI or Player Pokemon fainted => switch if available
-            handleFaints(currentBattle);
+            aiAction = { type: "move", move: aiMove };
           }
 
-          // Send updated battle state
+          currentBattle.turn(playerAction, aiAction);
+          handleFaints(currentBattle);
+
           sendFullBattleState(socket, currentBattle);
+
+        } else if (msg.action === "switch") {
+          // Switch out player's active Pokemon
+          const switchIndex = msg.pokemonIndex;
+          const cbt = currentBattle;
+
+          // Validate index
+          if (
+            switchIndex == null ||
+            switchIndex < 0 ||
+            switchIndex >= cbt.team1.length
+          ) {
+            // invalid index
+            return;
+          }
+
+          const chosenMon = cbt.team1[switchIndex];
+          // Can't switch to fainted or the same as active
+          if (!chosenMon || chosenMon.isFainted() || chosenMon === cbt.active1) {
+            // ignoring
+            return;
+          }
+
+          // Perform the switch
+          const switchAction: Action = { type: "switch", pokemon: chosenMon };
+          // AI picks random move
+          let aiAction: Action = { type: "move", move: null };
+          if (cbt.active2.moves.length > 0) {
+            const aiIndex = Math.floor(Math.random() * cbt.active2.moves.length);
+            const aiMove = cbt.active2.moves[aiIndex];
+            aiAction = { type: "move", move: aiMove };
+          }
+
+          cbt.turn(switchAction, aiAction);
+          handleFaints(cbt);
+
+          sendFullBattleState(socket, cbt);
         }
       } catch (err) {
         console.error("Error handling message:", err);
@@ -79,7 +113,7 @@ export function setupWebSocket(server: HttpServer) {
 
 /**
  * Helper to handle fainted Pokemon for a single-player scenario:
- * If active1 or active2 fainted, switch to next if available.
+ * If active1 or active2 fainted, auto-switch if possible
  */
 function handleFaints(battle: Battle) {
   // If player's active Pokemon fainted, auto-switch if possible
@@ -87,6 +121,8 @@ function handleFaints(battle: Battle) {
     const next = battle.team1.find((p) => !p.isFainted() && p !== battle.active1);
     if (next) {
       battle.active1 = next;
+      battle.active1.resetStatStages();
+      battle.active1.volatileStatus = [];
     }
   }
   // If AI's active Pokemon fainted, auto-switch if possible
@@ -94,6 +130,8 @@ function handleFaints(battle: Battle) {
     const next = battle.team2.find((p) => !p.isFainted() && p !== battle.active2);
     if (next) {
       battle.active2 = next;
+      battle.active2.resetStatStages();
+      battle.active2.volatileStatus = [];
     }
   }
 }
@@ -102,7 +140,9 @@ function handleFaints(battle: Battle) {
  * Send the entire battle state to the client
  */
 function sendFullBattleState(socket: any, battle: Battle) {
-  // Build a minimal shape of the battle state to the client
+  const active1Index = battle.team1.indexOf(battle.active1);
+  const active2Index = battle.team2.indexOf(battle.active2);
+
   const data = {
     type: "battleState",
     isOver: battle.isBattleOver(),
@@ -113,7 +153,7 @@ function sendFullBattleState(socket: any, battle: Battle) {
       maxHp: p.stats.hp,
       level: p.level,
       fainted: p.isFainted(),
-      status: p.status,
+      status: p.status
     })),
     team2: battle.team2.map((p) => ({
       species: p.species,
@@ -121,7 +161,7 @@ function sendFullBattleState(socket: any, battle: Battle) {
       maxHp: p.stats.hp,
       level: p.level,
       fainted: p.isFainted(),
-      status: p.status,
+      status: p.status
     })),
     active1: {
       species: battle.active1.species,
@@ -134,8 +174,8 @@ function sendFullBattleState(socket: any, battle: Battle) {
         name: m.name,
         power: m.power,
         accuracy: m.accuracy,
-        type: m.type,
-      })),
+        type: m.type
+      }))
     },
     active2: {
       species: battle.active2.species,
@@ -143,10 +183,12 @@ function sendFullBattleState(socket: any, battle: Battle) {
       maxHp: battle.active2.stats.hp,
       level: battle.active2.level,
       fainted: battle.active2.isFainted(),
-      status: battle.active2.status,
-      // For UI, we can omit or show AI moves
+      status: battle.active2.status
+      // Typically hide the AI moves from the player
     },
-    turnCount: battle.turnCount,
+    active1Index,
+    active2Index,
+    turnCount: battle.turnCount
   };
 
   socket.send(JSON.stringify(data));
