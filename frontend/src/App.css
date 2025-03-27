@@ -1,0 +1,334 @@
+/* Global styles */
+:root {
+  --primary-color: #3c5aa6;
+  --secondary-color: #ffcb05;
+  --dark-color: #2a75bb;
+  --light-color: #e6f0ff;
+  --danger-color: #ff5959;
+  --success-color: #78c850;
+  --warning-color: #f8d030;
+  --text-color: #333;
+  --background-color: #f5f5f5;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+  color: var(--text-color);
+  background-color: var(--background-color);
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-header {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 1rem;
+  text-align: center;
+}
+
+.app-footer {
+  background-color: var(--dark-color);
+  color: white;
+  padding: 1rem;
+  text-align: center;
+  margin-top: auto;
+}
+
+main {
+  flex: 1;
+  padding: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+button {
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  background-color: var(--primary-color);
+  color: white;
+  font-size: 1rem;
+  transition: background-color 0.3s;
+}
+
+button:hover {
+  background-color: var(--dark-color);
+}
+
+button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Start Screen */
+.start-screen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 70vh;
+}
+
+.start-container {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  max-width: 600px;
+  text-align: center;
+}
+
+.start-container h2 {
+  color: var(--primary-color);
+  margin-bottom: 1rem;
+}
+
+.start-container p {
+  margin-bottom: 1rem;
+}
+
+.start-button {
+  background-color: var(--secondary-color);
+  color: var(--text-color);
+  font-weight: bold;
+  padding: 0.75rem 1.5rem;
+  font-size: 1.1rem;
+  margin-top: 1rem;
+}
+
+.start-button:hover {
+  background-color: #e6b800;
+}
+
+.error-message {
+  color: var(--danger-color);
+  margin: 1rem 0;
+  padding: 0.5rem;
+  background-color: #ffeeee;
+  border-radius: 4px;
+}
+
+/* Battle Screen */
+.battle-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.battle-area {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  background-color: #e0f0e0;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.opponent-area,
+.player-area {
+  display: flex;
+  justify-content: center;
+}
+
+.battle-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .battle-controls {
+    grid-template-columns: 1fr;
+  }
+}
+
+.battle-log {
+  background-color: white;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  height: 300px;
+  overflow-y: auto;
+}
+
+.battle-log h3 {
+  color: var(--primary-color);
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.5rem;
+}
+
+.log-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.log-entries p {
+  margin: 0;
+  padding: 0.25rem 0;
+}
+
+.action-area {
+  background-color: white;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Pokemon Card */
+.pokemon-card {
+  background-color: white;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 300px;
+}
+
+.pokemon-card.opponent {
+  align-self: flex-start;
+}
+
+.pokemon-card.player {
+  align-self: flex-end;
+}
+
+.pokemon-card.fainted {
+  opacity: 0.6;
+}
+
+.pokemon-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.pokemon-info h3 {
+  color: var(--primary-color);
+}
+
+.status {
+  background-color: #f8d030;
+  color: var(--text-color);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.health-bar-container {
+  margin-top: 0.5rem;
+}
+
+.health-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+
+.health-bar-background {
+  background-color: #eee;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.health-bar-fill {
+  height: 100%;
+  transition: width 0.3s ease-out;
+}
+
+/* Moves List */
+.moves-list {
+  margin-top: 1rem;
+}
+
+.moves-list h3 {
+  color: var(--primary-color);
+  margin-bottom: 0.5rem;
+}
+
+.moves-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.move-button {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.1s;
+}
+
+.move-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.move-name {
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+}
+
+.move-details {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+}
+
+.move-type {
+  background-color: rgba(255, 255, 255, 0.2);
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+}
+
+.battle-over {
+  text-align: center;
+  padding: 1rem;
+}
+
+.battle-over h3 {
+  color: var(--primary-color);
+  margin-bottom: 1rem;
+}
+
+.battle-over button {
+  background-color: var(--secondary-color);
+  color: var(--text-color);
+  font-weight: bold;
+  padding: 0.75rem 1.5rem;
+  margin-top: 1rem;
+}
+
+.loading,
+.error {
+  text-align: center;
+  padding: 2rem;
+}
+
+.no-moves {
+  text-align: center;
+  padding: 1rem;
+  color: #888;
+}

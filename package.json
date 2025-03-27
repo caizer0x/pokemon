@@ -6,7 +6,10 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/src/index.js",
-    "dev": "ts-node src/index.ts"
+    "dev": "ts-node src/index.ts",
+    "server": "cd server && npm run dev",
+    "frontend": "cd frontend && npm run dev",
+    "dev:all": "concurrently \"npm run server\" \"npm run frontend\""
   },
   "keywords": [
     "pokemon",
@@ -17,7 +20,8 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "typescript": "^5.0.0",
-    "ts-node": "^10.9.1"
+    "concurrently": "^8.2.2",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.0"
   }
 }

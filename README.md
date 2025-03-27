@@ -1,6 +1,6 @@
 # Pokémon Battle Engine (Gen 1)
 
-A TypeScript implementation of a Generation 1 Pokémon battle engine that follows the mechanics of Pokémon Red, Blue, and Yellow, including quirks and bugs.
+A TypeScript implementation of a Generation 1 Pokémon battle engine that follows the mechanics of Pokémon Red, Blue, and Yellow, including quirks and bugs. This project includes both a battle engine library and a web-based battle simulator with a React frontend and Express backend.
 
 ## Features
 
@@ -14,10 +14,13 @@ A TypeScript implementation of a Generation 1 Pokémon battle engine that follow
 - Special moves with unique effects
 - Support for switching Pokémon
 - Gen 1 quirks like the 1/256 miss bug
+- Web-based battle simulator with React frontend
+- RESTful API with Express backend
+- Random team generation
 
 ## Project Structure
 
-- `src/` - Source code
+- `src/` - Core battle engine source code
   - `types.ts` - Core interfaces and types
   - `action.ts` - Action type for battle turns
   - `pokemon.ts` - Pokémon class implementation
@@ -28,6 +31,15 @@ A TypeScript implementation of a Generation 1 Pokémon battle engine that follow
   - `types.ts` - Type data and effectiveness chart
   - `moves.ts` - Move data
   - `species.ts` - Pokémon species data
+  - `sets/` - Pokémon sets and team generation
+- `frontend/` - React frontend
+  - `src/` - Frontend source code
+    - `components/` - React components
+    - `App.tsx` - Main application component
+    - `App.css` - Global styles
+- `server/` - Express backend
+  - `src/` - Backend source code
+    - `index.ts` - Server entry point
 
 ## Installation
 
@@ -36,11 +48,13 @@ A TypeScript implementation of a Generation 1 Pokémon battle engine that follow
 
 ```bash
 npm install
+cd frontend && npm install
+cd server && npm install
 ```
 
 ## Usage
 
-### Running the Example
+### Running the Example Battle
 
 ```bash
 npm run dev
@@ -48,13 +62,37 @@ npm run dev
 
 This will run the example battle in `src/index.ts` using ts-node.
 
+### Running the Web-Based Battle Simulator
+
+To run both the frontend and backend servers:
+
+```bash
+npm run dev:all
+```
+
+This will start the backend server at http://localhost:3001 and the frontend development server at http://localhost:5173.
+
+To run just the backend server:
+
+```bash
+npm run server
+```
+
+To run just the frontend development server:
+
+```bash
+npm run frontend
+```
+
 ### Building the Project
 
 ```bash
 npm run build
+cd frontend && npm run build
+cd server && npm run build
 ```
 
-This will compile the TypeScript code to JavaScript in the `dist/` directory.
+This will compile the TypeScript code to JavaScript in the respective `dist/` directories.
 
 ### Running the Built Project
 
@@ -109,6 +147,14 @@ battle.turn(
   { type: "move", move: /* opponent move */ }
 );
 ```
+
+## API Documentation
+
+See the [server README](server/README.md) for detailed API documentation.
+
+## Frontend Documentation
+
+See the [frontend README](frontend/README.md) for detailed frontend documentation.
 
 ## License
 
