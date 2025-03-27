@@ -1,473 +1,232 @@
-Below is a detailed technical specification for implementing a **Generation 1 Pokémon Battle Engine** in TypeScript. This guide provides concrete code structures, interfaces, and key algorithms to build a fully functional battle engine that adheres to the mechanics of Pokémon Red, Blue, and Yellow, including quirks and bugs. Unlike a general overview, this spec focuses on actionable TypeScript implementation details.
+# Generation 1 Pokémon Battle Engine – Detailed Technical Specification
+
+This document describes a **TypeScript-based** Generation 1 Pokémon Battle Engine, handling many of the unique mechanics and quirks from Pokémon Red, Blue, and Yellow (RBY). The codebase includes a **battle system** (turn handling, damage calculation, status effects, etc.), a **data layer** (species data, moves, type charts), and a **web-based** demonstration with a React frontend and an Express/WS backend.
 
 ---
 
 ## Table of Contents
 
-1. [Project Setup](#1-project-setup)
-2. [Core Interfaces](#2-core-interfaces)
-3. [Pokémon Class](#3-pokémon-class)
-4. [Move Class](#4-move-class)
-5. [Battle Class](#5-battle-class)
-6. [Key Algorithms](#6-key-algorithms)
-7. [Handling Gen 1 Quirks](#7-handling-gen-1-quirks)
-8. [External Data Integration](#8-external-data-integration)
+1. **Overview & Goals**
+2. **Project Structure**
+3. **Core Data & Types**
+4. **Pokémon Class**
+5. **Move Class**
+6. **Battle Class**
+7. **Gen 1 Mechanics & Quirks**
+8. **How to Run**
+9. **References**
 
 ---
 
-### 1. Project Setup
+## 1. Overview & Goals
 
-To start, set up a TypeScript project:
+The primary goal is an **accurate** Gen 1 Pokémon battle engine, replicating RBY mechanics, including:
+- **Stat calculations** using IVs, EVs, and level.
+- **Damage formula** (critical hits, random factor, STAB, type effectiveness).
+- **Status ailments** (burn, poison, paralysis, sleep, freeze).
+- **Volatile statuses** (Reflect, Light Screen, Confusion, Wrap, Leech Seed).
+- **Turn order** with reordering logic (switches first, Speed-based, speed ties).
+- **Distinct Gen 1 bugs/quirks**:
+  - 1/256 miss bug
+  - Special-based critical hits (Speed-based probability)
+  - Hyper Beam not requiring recharge if it KOs
+  - Move-based unique mechanics (e.g. binding moves, partial trapping)
 
-```bash
-mkdir pokemon-battle-engine
-cd pokemon-battle-engine
-npm init -y
-npm install typescript --save-dev
-npx tsc --init
-```
-
-Update `tsconfig.json`:
-
-```json
-{
-  "compilerOptions": {
-    "target": "ES6",
-    "module": "commonjs",
-    "strict": true,
-    "outDir": "./dist",
-    "rootDir": "./src"
-  }
-}
-```
-
-Create a directory structure:
-
-```
-src/
-├── battle.ts
-├── move.ts
-├── pokemon.ts
-├── types.ts
-└── data/
-    ├── pokemonData.json
-    ├── moveData.json
-    └── typeChart.json
-```
+A demonstration web app is provided, featuring:
+- **Express** server for bundling battles.
+- **WebSocket** connections for real-time updates.
+- **React** front-end that displays the battle, logs, and simple user actions.
 
 ---
 
-### 2. Core Interfaces
+## 2. Project Structure
 
-Define foundational types and interfaces in `types.ts`:
+```
+pokemon/
+├── data/
+│   ├── species.ts        # Pokémon species definitions (stats, types)
+│   ├── moves.ts          # All move definitions & enumerations
+│   ├── types.ts          # Type chart logic, type enum, etc.
+│   └── sets/
+│       ├── data.json     # Hard-coded sets & levels for random generation
+│       └── teams.ts      # RandomTeamGenerator that reads from data.json
+├── src/
+│   ├── action.ts         # Action type (move or switch)
+│   ├── battle.ts         # Core Battle class controlling the entire fight
+│   ├── move.ts           # Move class with side effects
+│   ├── pokemon.ts        # Pokémon class with stats & status
+│   ├── types.ts          # Shared TS types (Stats, Status, VolatileStatus, etc.)
+│   └── index.ts          # Example usage / CLI test
+├── server/
+│   ├── src/
+│   │   ├── index.ts      # Express server, config, WebSocket setup
+│   │   └── wsServer.ts   # WebSocket code bridging the front-end and the battle
+├── frontend/
+│   ├── public/
+│   └── src/
+│       ├── components/   # React components for battle display
+│       ├── main.tsx      # Entry point
+│       └── App.tsx
+└── spec.md               # This specification
 
-```typescript
-// src/types.ts
-export type Stat = "hp" | "atk" | "def" | "spc" | "spe";
-export type Status =
-  | "burn"
-  | "poison"
-  | "paralysis"
-  | "sleep"
-  | "freeze"
-  | null;
-export type VolatileStatus =
-  | "substitute"
-  | "confusion"
-  | "leechSeed"
-  | "wrap"
-  | null;
-
-export interface BaseStats {
-  hp: number;
-  atk: number;
-  def: number;
-  spc: number;
-  spe: number;
-}
-
-export interface IVs {
-  hp: number;
-  atk: number;
-  def: number;
-  spc: number;
-  spe: number;
-}
-
-export interface EVs {
-  hp: number;
-  atk: number;
-  def: number;
-  spc: number;
-  spe: number;
-}
-
-export interface TypeEffectiveness {
-  [attackingType: string]: {
-    [defendingType: string]: number; // 0, 0.5, 1, 2
-  };
-}
-
-export interface MoveData {
-  name: string;
-  power: number;
-  accuracy: number;
-  type: string;
-  category: "physical" | "special";
-  effect?: string; // e.g., 'burn', 'sleep'
-}
-
-export type Action =
-  | { type: "move"; move: Move }
-  | { type: "switch"; pokemon: Pokemon };
 ```
 
 ---
 
-### 3. Pokémon Class
+## 3. Core Data & Types
 
-Implement the `Pokemon` class in `pokemon.ts` to manage individual Pokémon:
+**`src/types.ts`** defines the fundamental data contracts:
 
-```typescript
-// src/pokemon.ts
-import { BaseStats, IVs, EVs, Stat, Status, VolatileStatus } from "./types";
-import { Move } from "./move";
+- **BaseStats**, **IVs**, **EVs**: Represent a Pokémon's stats or genetic values (Gen 1 uses 0–15 IV range).
+- **Status**: `'burn' | 'poison' | 'paralysis' | 'sleep' | 'freeze' | null`.
+- **VolatileStatus**: `'substitute' | 'confusion' | 'leechSeed' | 'wrap' | 'reflect' | 'lightscreen' | null`.
+- **MoveData**: Basic info about a move (power, accuracy, type, effect).
+- **Action**: Describes what a combatant does in a turn: either `{ type: 'move'; move: Move }` or `{ type: 'switch'; pokemon: Pokemon }`.
 
-export class Pokemon {
-  species: string;
-  baseStats: BaseStats;
-  ivs: IVs;
-  evs: EVs;
-  level: number = 100;
-  stats: BaseStats;
-  currentHp: number;
-  status: Status = null;
-  volatileStatus: VolatileStatus[] = [];
-  statStages: { [stat in Stat]: number } = {
-    hp: 0,
-    atk: 0,
-    def: 0,
-    spc: 0,
-    spe: 0,
-  };
-  moves: Move[];
+**`data/types.ts`** has the **Type** enum and a 2D **TYPE_CHART** matrix for computing damage multipliers, plus utilities for combining dual types.
 
-  constructor(
-    species: string,
-    baseStats: BaseStats,
-    ivs: IVs,
-    evs: EVs,
-    moves: Move[]
-  ) {
-    this.species = species;
-    this.baseStats = baseStats;
-    this.ivs = ivs;
-    this.evs = evs;
-    this.moves = moves;
-    this.stats = this.calculateStats();
-    this.currentHp = this.stats.hp;
-  }
+---
 
+## 4. Pokémon Class
+
+Located in **`src/pokemon.ts`**. Key highlights:
+
+- **Stats Calculation**:
+  ```ts
   private calculateStats(): BaseStats {
-    const stats: Partial<BaseStats> = {};
-    for (const stat of ["hp", "atk", "def", "spc", "spe"] as Stat[]) {
-      if (stat === "hp") {
-        stats.hp =
-          Math.floor(
-            ((this.baseStats.hp +
-              this.ivs.hp +
-              Math.floor(Math.sqrt(this.evs.hp) / 8)) *
-              this.level) /
-              100
-          ) +
-          10 +
-          this.level;
-      } else {
-        stats[stat] =
-          Math.floor(
-            ((this.baseStats[stat] +
-              this.ivs[stat] +
-              Math.floor(Math.sqrt(this.evs[stat]) / 8)) *
-              this.level) /
-              100
-          ) + 5;
-      }
-    }
-    return stats as BaseStats;
+    // (Base + IV + floor(sqrt(EV)/8)) * Level / 100 + ...
   }
+  ```
+- **Methods**:
+  - `applyDamage(damage: number)`: subtract HP, min 0.
+  - `heal(amount: number)`: add HP up to max.
+  - `setStatus(status: Status)`: apply a main status if none is present.
+  - `addVolatileStatus(...)`: apply a short-term effect (Reflect, Confusion, etc.).
+  - `isFainted()`: checks if `currentHp <= 0`.
 
-  getEffectiveStat(stat: Stat): number {
-    if (stat === "hp") return this.stats.hp;
-    let multiplier =
-      this.statStages[stat] >= 0
-        ? (2 + this.statStages[stat]) / 2
-        : 2 / (2 - this.statStages[stat]);
-    multiplier = Math.max(0.25, Math.min(4, multiplier));
-    let effective = this.stats[stat] * multiplier;
-    if (stat === "spe" && this.status === "paralysis") effective *= 0.25; // Gen 1 uses 0.25
-    return Math.floor(effective);
-  }
+Internally, it stores **baseStats**, **IVs**, **EVs**, **level**, and an array of **Move** objects. In Gen 1, many details are simpler than later gens (no separation of Attack/Special Attack, etc.).
 
-  applyDamage(damage: number): void {
-    this.currentHp = Math.max(0, this.currentHp - damage);
-  }
+---
 
-  setStatus(status: Status): void {
-    if (!this.status) this.status = status;
-  }
+## 5. Move Class
 
-  addVolatileStatus(status: VolatileStatus): void {
-    if (!this.volatileStatus.includes(status)) this.volatileStatus.push(status);
-  }
+Defined in **`src/move.ts`**. Each Move:
 
-  removeVolatileStatus(status: VolatileStatus): void {
-    this.volatileStatus = this.volatileStatus.filter((s) => s !== status);
-  }
-}
+- **Fields**: `moveId`, `name`, `power`, `accuracy`, `type`, `category` ("physical" or "special"), `effect` (a special effect code).
+- **applyEffect(...)**: after dealing damage, we check for side effects (poison, burn, recoil, etc.).
+
+We use an enumerated approach in **`data/moves.ts`**, each move has an ID (e.g. `Move.Thunderbolt`), effect codes, base power, etc.
+
+---
+
+## 6. Battle Class
+
+Central logic in **`src/battle.ts`**. Key responsibilities:
+
+1. **Team & Pokémon Tracking**:
+   - Two arrays of `Pokemon` (`team1`, `team2`).
+   - Each side’s current active Pokémon (`active1`, `active2`).
+   - Turn count, battle log, states like `isRecharging1` (Hyper Beam), `isBound1` (Wrap), etc.
+
+2. **turn(action1, action2)**:
+   - Calls sub-steps for switching, recharging, binding, then determines the speed order for move resolution.
+   - Executes each side’s action in order. If a side tries to move but is paralyzed/asleep/frozen, skip.
+
+3. **Damage Calculation**:
+   - `calculateDamage(...)` uses the Gen 1 formula:
+     \[
+       \text{BaseDamage} = \left\lfloor \left\lfloor\frac{((2 \times L)/5 + 2) \times \text{Atk} \times \text{Power}}{\text{Def}} / 50\right\rfloor \right\rfloor + 2
+     \]
+   - Then we apply:
+     - Critical hits (speed-based).
+     - STAB (1.5 if move type = user's type).
+     - Type effectiveness from `calculateEffectiveness`.
+     - Random factor (217–255 range).
+     - Reflect/Light Screen halves final physical/special damage.
+
+4. **applyEndOfTurn()**:
+   - Burns (1/8 max HP), poison (1/16), leech seed (1/16).
+   - Binding damage if user is locked by Wrap or similar.
+   - Checking if either Pokémon fainted.
+
+5. **Switching**:
+   - Typically done prior to moves. If user switches out, Reflect/Light Screen vanish from that user in Gen 1.
+
+6. **Logging**:
+   - The `battleLog` array accumulates all relevant text events.
+
+7. **Finish Condition**:
+   - `isBattleOver()` checks if all Pokémon on one team are fainted.
+   - `getWinner()` returns `"team1"`, `"team2"`, or `null` if ongoing.
+
+**Binding Moves** (Wrap, Fire Spin) cause forced skip for the victim for 2–5 turns. The class sets a boolean flag + turn counter.
+
+**Hyper Beam** recharges next turn if the defender does not faint.
+
+---
+
+## 7. Gen 1 Mechanics & Quirks
+
+1. **1/256 Miss Bug**: Even 100% accurate moves have a 1/256 chance to miss. Implemented as:
+   ```ts
+   const hits = accuracyRoll < moveAccuracy && Math.random() >= 1 / 256;
+   ```
+2. **Paralysis**: Speed is quartered, 25% chance to be "fully paralyzed."
+3. **Critical Hits**: Based on user’s base Speed, not stage changes. Formula is `Speed / 512`.
+4. **Freeze**: Pokémon never thaws unless a fire-type move is used, or in this code, we include a 10% chance each turn for demonstration.
+5. **Hyper Beam**: Only recharges if the target didn't faint. If the attack KOs, no recharge.
+
+---
+
+## 8. How to Run
+
+### 1. **Install** dependencies:
+```bash
+npm install
+cd frontend && npm install
+cd ../server && npm install
 ```
 
----
+### 2. **Development**:
 
-### 4. Move Class
+- Run the server:
+  ```bash
+  npm run server
+  ```
+  This starts `ts-node src/index.ts` in `/server`.
 
-Implement the `Move` class in `move.ts`:
+- Run the frontend:
+  ```bash
+  npm run frontend
+  ```
+  This starts the Vite dev server at `http://localhost:5173`.
 
-```typescript
-// src/move.ts
-import { MoveData, Pokemon } from "./types";
+- **Combined**:
+  ```bash
+  npm run dev:all
+  ```
+  Runs both servers together via `concurrently`.
 
-export class Move {
-  name: string;
-  power: number;
-  accuracy: number;
-  type: string;
-  category: "physical" | "special";
-  effect?: string;
-
-  constructor(data: MoveData) {
-    this.name = data.name;
-    this.power = data.power;
-    this.accuracy = data.accuracy;
-    this.type = data.type;
-    this.category = data.category;
-    this.effect = data.effect;
-  }
-
-  applyEffect(attacker: Pokemon, defender: Pokemon): void {
-    if (!this.effect || Math.random() > 0.3) return; // Simplified effect chance
-    switch (this.effect) {
-      case "burn":
-        defender.setStatus("burn");
-        break;
-      case "poison":
-        defender.setStatus("poison");
-        break;
-      case "sleep":
-        defender.setStatus("sleep");
-        break;
-      // Add more effects as needed
-    }
-  }
-}
-```
+### 3. **Production**:
+- Build everything:
+  ```bash
+  npm run build
+  cd frontend && npm run build
+  cd ../server && npm run build
+  ```
+- Start the compiled server:
+  ```bash
+  cd server
+  npm start
+  ```
+- Optionally serve `frontend/dist` as static content or connect them behind a proxy.
 
 ---
 
-### 5. Battle Class
+## 9. References
 
-Implement the `Battle` class in `battle.ts` to manage the battle flow:
+- [Pokémon Showdown] for partial data references
+- [Bulbapedia – RBY Mechanics](https://bulbapedia.bulbagarden.net/wiki/Game_mechanics)
+- [Smogon – RBY Competitive Mechanics](https://www.smogon.com/forums/forums/ruins-of-alph.64/)
 
-```typescript
-// src/battle.ts
-import { Pokemon } from "./pokemon";
-import { Action } from "./types";
-
-export class Battle {
-  team1: Pokemon[];
-  team2: Pokemon[];
-  active1: Pokemon;
-  active2: Pokemon;
-  turnCount: number = 0;
-
-  constructor(team1: Pokemon[], team2: Pokemon[]) {
-    this.team1 = team1;
-    this.team2 = team2;
-    this.active1 = team1[0];
-    this.active2 = team2[0];
-  }
-
-  turn(action1: Action, action2: Action): void {
-    this.turnCount++;
-    const order = this.getTurnOrder(action1, action2);
-    for (const [side, action] of order) {
-      this.executeAction(side as "team1" | "team2", action);
-    }
-    this.applyEndOfTurn();
-  }
-
-  private getTurnOrder(action1: Action, action2: Action): [string, Action][] {
-    if (action1.type === "switch" && action2.type !== "switch")
-      return [
-        ["team1", action1],
-        ["team2", action2],
-      ];
-    if (action2.type === "switch" && action1.type !== "switch")
-      return [
-        ["team2", action2],
-        ["team1", action1],
-      ];
-    if (action1.type === "switch" && action2.type === "switch") {
-      return Math.random() < 0.5
-        ? [
-            ["team1", action1],
-            ["team2", action2],
-          ]
-        : [
-            ["team2", action2],
-            ["team1", action1],
-          ];
-    }
-    const speed1 = this.active1.getEffectiveStat("spe");
-    const speed2 = this.active2.getEffectiveStat("spe");
-    return speed1 >= speed2
-      ? [
-          ["team1", action1],
-          ["team2", action2],
-        ]
-      : [
-          ["team2", action2],
-          ["team1", action1],
-        ];
-  }
-
-  private executeAction(side: "team1" | "team2", action: Action): void {
-    const attacker = side === "team1" ? this.active1 : this.active2;
-    const defender = side === "team1" ? this.active2 : this.active1;
-
-    if (action.type === "switch") {
-      if (side === "team1") this.active1 = action.pokemon;
-      else this.active2 = action.pokemon;
-      return;
-    }
-
-    // Check accuracy with 1/256 miss bug
-    const hit =
-      Math.random() * 255 < action.move.accuracy * 2.55 ||
-      action.move.accuracy === 100
-        ? Math.random() >= 1 / 256
-        : false;
-    if (!hit) return;
-
-    const damage = this.calculateDamage(attacker, defender, action.move);
-    defender.applyDamage(damage);
-    action.move.applyEffect(attacker, defender);
-  }
-
-  private calculateDamage(
-    attacker: Pokemon,
-    defender: Pokemon,
-    move: Move
-  ): number {
-    const level = 100;
-    const attack =
-      move.category === "physical"
-        ? attacker.getEffectiveStat("atk")
-        : attacker.getEffectiveStat("spc");
-    const defense =
-      move.category === "physical"
-        ? defender.getEffectiveStat("def")
-        : defender.getEffectiveStat("spc");
-    const baseDamage = Math.floor(
-      Math.floor((((2 * level) / 5 + 2) * attack * move.power) / defense / 50)
-    );
-    const stab = attacker.species === move.type ? 1.5 : 1; // Simplified STAB
-    const typeEffectiveness = 1; // Use typeChart.json in practice
-    const randomFactor = Math.floor(Math.random() * 39) + 217;
-    const critChance = attacker.getEffectiveStat("spe") / 512;
-    const isCrit = Math.random() < critChance;
-    let damage = Math.floor(
-      baseDamage * stab * typeEffectiveness * (randomFactor / 255)
-    );
-    if (isCrit) damage *= 2; // Use base stats in practice for crit
-    return Math.max(1, damage);
-  }
-
-  private applyEndOfTurn(): void {
-    for (const p of [this.active1, this.active2]) {
-      if (p.status === "burn") p.applyDamage(Math.floor(p.stats.hp / 8));
-      if (p.status === "poison") p.applyDamage(Math.floor(p.stats.hp / 16));
-    }
-  }
-
-  isBattleOver(): boolean {
-    return (
-      this.team1.every((p) => p.currentHp === 0) ||
-      this.team2.every((p) => p.currentHp === 0)
-    );
-  }
-}
-```
-
----
-
-### 6. Key Algorithms
-
-#### 6.1. Turn Order
-
-- Switches go first.
-- For moves, compare effective Speed (`getEffectiveStat('spe')`).
-- Ties are randomized.
-
-#### 6.2. Damage Calculation
-
-- Uses the Gen 1 formula with STAB, type effectiveness (stubbed here), random factor (217–255), and critical hits.
-
-#### 6.3. Status Effects
-
-- Burn: Halves Attack (adjust in `getEffectiveStat`), 1/8 HP per turn.
-- Poison: 1/16 HP per turn.
-- Paralysis: 25% chance to skip (add to `executeAction`), 0.25x Speed.
-
----
-
-### 7. Handling Gen 1 Quirks
-
-- **1/256 Miss Bug**: Added in `executeAction`.
-- **Hyper Beam**: Skip recharge on KO/miss (add condition in `executeAction`).
-- **Critical Hit**: Use base stats for attack/defense (modify `calculateDamage`).
-
----
-
-### 8. External Data Integration
-
-Load data in a main file (e.g., `index.ts`):
-
-```typescript
-// src/index.ts
-import { Pokemon } from "./pokemon";
-import { Move } from "./move";
-import { Battle } from "./battle";
-import pokemonData from "./data/pokemonData.json";
-import moveData from "./data/moveData.json";
-
-const pikachu = new Pokemon(
-  "Pikachu",
-  pokemonData["pikachu"].baseStats,
-  { hp: 15, atk: 15, def: 15, spc: 15, spe: 15 },
-  { hp: 255, atk: 255, def: 255, spc: 255, spe: 255 },
-  [new Move(moveData["thunderbolt"])]
-);
-const charmander = new Pokemon(
-  "Charmander",
-  pokemonData["charmander"].baseStats,
-  { hp: 15, atk: 15, def: 15, spc: 15, spe: 15 },
-  { hp: 255, atk: 255, def: 255, spc: 255, spe: 255 },
-  [new Move(moveData["ember"])]
-);
-
-const battle = new Battle([pikachu], [charmander]);
-battle.turn(
-  { type: "move", move: pikachu.moves[0] },
-  { type: "move", move: charmander.moves[0] }
-);
-```
+This battle engine aims for a faithful Gen 1 simulation. Some details (e.g., freeze chance to thaw each turn) are simplified to make it less punishing.

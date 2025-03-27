@@ -11,7 +11,7 @@ import { Pokemon } from "./pokemon";
 
 /**
  * Enhanced Move class that can handle extra side-effects
- * like recoil, explosion, self-heal, etc.
+ * like recoil, explosion, self-heal, reflect, etc.
  */
 export class Move {
   name: string;
@@ -32,7 +32,7 @@ export class Move {
     this.type = moveData.type;
     this.effect = moveData.effect;
 
-    // In Gen 1, Fire/Water/Grass/Electric/Ice/Psychic/Dragon are special
+    // In Gen 1, Fire/Water/Grass/Electric/Ice/Psychic/Dragon => special-based
     this.category = special(moveData.type) ? "special" : "physical";
   }
 
@@ -48,13 +48,13 @@ export class Move {
     defender: Pokemon,
     damageDealt: number
   ): string | null {
-    // If there's no effect or effect is 0, we do nothing
+    // If there's no effect code, do nothing
     if (!this.effect) {
       return null;
     }
 
     switch (this.effect) {
-      // (A) Status-inflicting logic
+      // === (A) Status logic ===
       case Effect.Poison:
         if (!defender.status) {
           defender.setStatus("poison");
@@ -103,7 +103,7 @@ export class Move {
         }
         return null;
 
-      // (B) Stat changes
+      // === (B) Stat changes ===
       case Effect.AttackDown1:
         defender.modifyStat("atk", -1);
         return `${defender.species}'s Attack fell!`;
@@ -128,7 +128,7 @@ export class Move {
         attacker.modifyStat("spc", 1);
         return `${attacker.species}'s Special rose!`;
 
-      // (C) Recoil moves
+      // === (C) Recoil
       case Effect.Recoil:
         if (damageDealt > 0) {
           const recoilDamage = Math.floor(damageDealt / 4);
@@ -137,18 +137,20 @@ export class Move {
         }
         return null;
 
-      // (D) Explosive moves
+      // === (D) Explosive moves
       case Effect.Explode:
         attacker.currentHp = 0;
         return `${attacker.species} explodes and faints!`;
 
-      // (E) Healing moves (Recover, SoftBoiled, Rest)
+      // === (E) Healing moves (Recover, SoftBoiled, Rest)
       case Effect.Heal:
         if (this.moveId === MoveEnum.Rest) {
+          // Full HP, user sleeps
           attacker.heal(attacker.stats.hp);
           attacker.setStatus("sleep");
           return `${attacker.species} used Rest and is now fully healed (and asleep)!`;
         } else {
+          // ~50% HP heal
           const halfHp = Math.floor(attacker.stats.hp / 2);
           const actual = Math.min(attacker.stats.hp - attacker.currentHp, halfHp);
           if (actual <= 0) {
@@ -158,7 +160,7 @@ export class Move {
           return `${attacker.species} regained health! (~50%)`;
         }
 
-      // (F) Dream Eater
+      // === (F) Dream Eater
       case Effect.DreamEater:
         if (defender.status === "sleep") {
           const healAmount = Math.floor(damageDealt / 2);
@@ -167,19 +169,40 @@ export class Move {
         }
         return `But it failed... ${defender.species} is not sleeping.`;
 
+      // === (G) Reflect & Light Screen in Gen 1
+      // They remain in effect until user switches or Haze.
+      case Effect.Reflect:
+        if (!attacker.volatileStatus.includes("reflect")) {
+          attacker.volatileStatus.push("reflect");
+          return `${attacker.species} raised its Defense with Reflect!`;
+        } else {
+          return `${attacker.species} already has Reflect in effect!`;
+        }
+
+      case Effect.LightScreen:
+        if (!attacker.volatileStatus.includes("lightscreen")) {
+          attacker.volatileStatus.push("lightscreen");
+          return `${attacker.species} raised its Special with Light Screen!`;
+        } else {
+          return `${attacker.species} already has Light Screen in effect!`;
+        }
+
       default:
         return null;
     }
   }
 
+  // Get the PP of the move
   getPP(): number {
     return pp(this.moveId);
   }
 
+  // Check if the move is a high critical hit ratio move
   hasHighCritical(): boolean {
     return this.effect === Effect.HighCritical;
   }
 
+  // Check if the move is a multi-hit move
   isMultiHit(): boolean {
     return isMulti(this.effect);
   }
