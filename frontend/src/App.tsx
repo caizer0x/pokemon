@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import "./App.css";
 import BattlePage from "./components/BattlePage";
 
 function App() {
@@ -40,13 +39,20 @@ function App() {
   };
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <h1>Pokémon Battle (Gen 1) - WebSockets</h1>
+    <div className="flex flex-col min-h-screen">
+      <header className="bg-primary text-white p-4 shadow-md">
+        <div className="container mx-auto">
+          <h1 className="text-2xl md:text-3xl font-bold text-center">
+            Pokémon Battle (Gen 1)
+          </h1>
+        </div>
       </header>
-      <main>
+      <main className="flex-1 container mx-auto p-4">
         <BattlePage battleState={battleState} onSendMessage={sendMessage} />
       </main>
+      <footer className="bg-dark text-white p-3 text-center text-sm">
+        <p>Pokémon Battle Engine - Generation 1</p>
+      </footer>
     </div>
   );
 }
