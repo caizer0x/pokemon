@@ -39,6 +39,7 @@ export class Move {
     // Handle status effects
     if (this.effect === Effect.Poison) {
       defender.setStatus("poison");
+      console.log(`${defender.species} was poisoned!`);
     } else if (
       this.effect === Effect.BurnChance1 ||
       this.effect === Effect.BurnChance2
@@ -46,6 +47,7 @@ export class Move {
       if (Math.random() < 0.3) {
         // Simplified chance
         defender.setStatus("burn");
+        console.log(`${defender.species} was burned!`);
       }
     } else if (
       this.effect === Effect.ParalyzeChance1 ||
@@ -54,13 +56,16 @@ export class Move {
       if (Math.random() < 0.3) {
         // Simplified chance
         defender.setStatus("paralysis");
+        console.log(`${defender.species} was paralyzed!`);
       }
     } else if (this.effect === Effect.Sleep) {
       defender.setStatus("sleep");
+      console.log(`${defender.species} fell asleep!`);
     } else if (this.effect === Effect.FreezeChance) {
       if (Math.random() < 0.1) {
         // Simplified chance
         defender.setStatus("freeze");
+        console.log(`${defender.species} was frozen solid!`);
       }
     } else if (this.effect === Effect.Confusion) {
       defender.addVolatileStatus("confusion");

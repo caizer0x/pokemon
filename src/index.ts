@@ -6,96 +6,40 @@ import { Action } from "./action";
 import { Species } from "../data/species";
 import { Move as MoveEnum } from "../data/moves";
 import { Type } from "../data/types";
+import randomTeamGenerator from "../data/sets/teams";
 
-// Create some sample Pokémon
-function createPikachu(): Pokemon {
-  // Create moves for Pikachu
-  const thunderbolt = new Move(MoveEnum.Thunderbolt);
-  const quickAttack = new Move(MoveEnum.QuickAttack);
-  const thunder = new Move(MoveEnum.Thunder);
-  const surf = new Move(MoveEnum.Surf); // Yes, Pikachu can learn Surf in Gen 1 via special events
-
-  // Create Pikachu with max IVs and EVs
-  return new Pokemon(
-    Species.Pikachu,
-    { hp: 15, atk: 15, def: 15, spc: 15, spe: 15 }, // IVs (15 is max in Gen 1)
-    { hp: 255, atk: 255, def: 255, spc: 255, spe: 255 }, // EVs (255 is max in Gen 1)
-    [thunderbolt, quickAttack, thunder, surf],
-    100 // Level 50
-  );
-}
-
-function createCharizard(): Pokemon {
-  // Create moves for Charizard
-  const flamethrower = new Move(MoveEnum.Flamethrower);
-  const fireBlast = new Move(MoveEnum.FireBlast);
-  const earthquake = new Move(MoveEnum.Earthquake);
-  const fly = new Move(MoveEnum.Fly);
-
-  // Create Charizard with max IVs and EVs
-  return new Pokemon(
-    Species.Charizard,
-    { hp: 15, atk: 15, def: 15, spc: 15, spe: 15 }, // IVs
-    { hp: 255, atk: 255, def: 255, spc: 255, spe: 255 }, // EVs
-    [flamethrower, fireBlast, earthquake, fly],
-    55 // Level 55
-  );
-}
-
-function createBlastoise(): Pokemon {
-  // Create moves for Blastoise
-  const surf = new Move(MoveEnum.Surf);
-  const hydroPump = new Move(MoveEnum.HydroPump);
-  const iceBeam = new Move(MoveEnum.IceBeam);
-  const bodySlam = new Move(MoveEnum.BodySlam);
-
-  // Create Blastoise with max IVs and EVs
-  return new Pokemon(
-    Species.Blastoise,
-    { hp: 15, atk: 15, def: 15, spc: 15, spe: 15 }, // IVs
-    { hp: 255, atk: 255, def: 255, spc: 255, spe: 255 }, // EVs
-    [surf, hydroPump, iceBeam, bodySlam],
-    100 // Level 52
-  );
-}
-
-function createVenusaur(): Pokemon {
-  // Create moves for Venusaur
-  const razorLeaf = new Move(MoveEnum.RazorLeaf);
-  const sleepPowder = new Move(MoveEnum.SleepPowder);
-  const bodySlam = new Move(MoveEnum.BodySlam);
-  const swordsDance = new Move(MoveEnum.SwordsDance);
-
-  // Create Venusaur with max IVs and EVs
-  return new Pokemon(
-    Species.Venusaur,
-    { hp: 15, atk: 15, def: 15, spc: 15, spe: 15 }, // IVs
-    { hp: 255, atk: 255, def: 255, spc: 255, spe: 255 }, // EVs
-    [razorLeaf, sleepPowder, bodySlam, swordsDance],
-    51 // Level 51
-  );
-}
-
-// Create a sample battle
-function runSampleBattle() {
-  // Create two teams
-  const team1 = [createPikachu(), createBlastoise()];
-  const team2 = [createCharizard(), createVenusaur()];
+// Create a battle with random teams
+function runRandomBattle() {
+  // Generate two random teams of 6 Pokémon each
+  const team1 = randomTeamGenerator.getRandomTeam(6);
+  const team2 = randomTeamGenerator.getRandomTeam(6);
 
   // Create a battle
   const battle = new Battle(team1, team2);
 
-  console.log("Battle started!");
-  console.log(
-    `Team 1: ${Species[team1[0].species]} and ${Species[team1[1].species]}`
-  );
-  console.log(
-    `Team 2: ${Species[team2[0].species]} and ${Species[team2[1].species]}`
-  );
+  console.log("Random Battle started!");
+  console.log("Team 1:");
+  team1.forEach((pokemon) => {
+    console.log(
+      `- ${Species[pokemon.species]} (Lv. ${
+        pokemon.level
+      }) with moves: ${pokemon.moves.map((m) => m.name).join(", ")}`
+    );
+  });
+
+  console.log("\nTeam 2:");
+  team2.forEach((pokemon) => {
+    console.log(
+      `- ${Species[pokemon.species]} (Lv. ${
+        pokemon.level
+      }) with moves: ${pokemon.moves.map((m) => m.name).join(", ")}`
+    );
+  });
   console.log("\n");
 
-  // Run a few turns
-  for (let i = 0; i < 5; i++) {
+  // Run the battle simulation for a maximum of 50 turns
+  const MAX_TURNS = 50;
+  for (let i = 0; i < MAX_TURNS; i++) {
     if (battle.isBattleOver()) break;
 
     console.log(`Turn ${battle.turnCount + 1}`);
@@ -107,19 +51,53 @@ function runSampleBattle() {
       }/${battle.active2.stats.hp})`
     );
 
-    // For simplicity, always use the first move
-    const action1: Action = { type: "move", move: battle.active1.moves[0] };
-    const action2: Action = { type: "move", move: battle.active2.moves[0] };
+    // For simplicity, always use a random move if available
+    // If no moves are available, use a null move (skip turn)
+    let action1: Action;
+    let action2: Action;
+
+    if (battle.active1.moves.length > 0) {
+      const moveIndex1 = Math.floor(
+        Math.random() * battle.active1.moves.length
+      );
+      action1 = {
+        type: "move",
+        move: battle.active1.moves[moveIndex1],
+      };
+      console.log(
+        `${Species[battle.active1.species]} used ${
+          battle.active1.moves[moveIndex1].name
+        }!`
+      );
+    } else {
+      action1 = { type: "move", move: null };
+      console.log(
+        `${Species[battle.active1.species]} has no moves and skipped its turn!`
+      );
+    }
+
+    if (battle.active2.moves.length > 0) {
+      const moveIndex2 = Math.floor(
+        Math.random() * battle.active2.moves.length
+      );
+      action2 = {
+        type: "move",
+        move: battle.active2.moves[moveIndex2],
+      };
+      console.log(
+        `${Species[battle.active2.species]} used ${
+          battle.active2.moves[moveIndex2].name
+        }!`
+      );
+    } else {
+      action2 = { type: "move", move: null };
+      console.log(
+        `${Species[battle.active2.species]} has no moves and skipped its turn!`
+      );
+    }
 
     // Execute the turn
     battle.turn(action1, action2);
-
-    console.log(
-      `${Species[battle.active1.species]} used ${battle.active1.moves[0].name}!`
-    );
-    console.log(
-      `${Species[battle.active2.species]} used ${battle.active2.moves[0].name}!`
-    );
     console.log(
       `${Species[battle.active1.species]} HP: ${battle.active1.currentHp}/${
         battle.active1.stats.hp
@@ -132,7 +110,7 @@ function runSampleBattle() {
     );
     console.log("\n");
 
-    // If a Pokémon faints, break the loop and end the simulation
+    // If a Pokémon faints, switch to the next available one
     if (battle.active1.isFainted() || battle.active2.isFainted()) {
       if (battle.active1.isFainted()) {
         console.log(`${Species[battle.active1.species]} fainted!`);
@@ -179,9 +157,9 @@ function runSampleBattle() {
       `Battle over! ${winner === "team1" ? "Team 1" : "Team 2"} wins!`
     );
   } else {
-    console.log("Battle simulation ended after 5 turns.");
+    console.log(`Battle simulation ended after ${MAX_TURNS} turns.`);
   }
 }
 
-// Run the sample battle
-runSampleBattle();
+// Run the random battle
+runRandomBattle();

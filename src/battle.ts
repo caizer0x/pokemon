@@ -155,8 +155,15 @@ export class Battle {
 
     // Handle sleep
     if (attacker.status === "sleep") {
-      // TODO: Implement sleep counter
-      return; // Skip turn due to sleep
+      // In Gen 1, sleep lasts 1-7 turns
+      // For simplicity, we'll use a 1/3 chance to wake up each turn
+      if (Math.random() < 0.33) {
+        attacker.cureStatus();
+        console.log(`${attacker.species} woke up!`);
+      } else {
+        console.log(`${attacker.species} is fast asleep.`);
+        return; // Skip turn due to sleep
+      }
     }
 
     // Handle freeze
