@@ -1,5 +1,5 @@
 import React from "react";
-import { Species } from "../../../data/species"; // for mapping ID to name
+import { Species } from "../../../data/species";
 
 interface MoveInfo {
   name: string;
@@ -18,34 +18,48 @@ interface PokemonInfo {
   moves?: MoveInfo[];
 }
 
+/**
+ * Additional ephemeral animation triggers we might apply.
+ */
 interface PokemonCardProps {
   pokemon: PokemonInfo;
+  shake?: boolean;          // triggers the "shake" animation
+  statChange?: "up" | "down" | null;  // triggers a stat arrow
+  fadeSwitch?: boolean;     // triggers fade-in/out on switching
 }
 
-const PokemonCard: React.FC<PokemonCardProps> = ({ pokemon }) => {
+const PokemonCard: React.FC<PokemonCardProps> = ({
+  pokemon,
+  shake = false,
+  statChange = null,
+  fadeSwitch = false,
+}) => {
   const hpPercent = Math.floor((pokemon.hp / pokemon.maxHp) * 100);
   const barColorClass =
     hpPercent > 50
-      ? "health-bar-fill-high"
+      ? "bg-success"
       : hpPercent > 20
-      ? "health-bar-fill-medium"
-      : "health-bar-fill-low";
+      ? "bg-warning"
+      : "bg-danger";
 
-  // get species name from data/species
-  const speciesName =
-    Species[pokemon.species] || `Unknown (#${pokemon.species})`;
-  // use species numeric for sprite
+  const speciesName = Species[pokemon.species] || `Unknown (#${pokemon.species})`;
+  // for retro effect we can do a standard RBY style sprite
   const spriteUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.species}.png`;
 
+  // Classes for container
+  const containerClasses = [
+    "card",
+    "relative", // for stat arrow overlay
+    pokemon.fainted ? "opacity-60" : "",
+    shake ? "animate-shake" : "",
+    fadeSwitch ? "fade-switch" : ""
+  ].join(" ");
+
   return (
-    <div className={`card ${pokemon.fainted ? "opacity-60" : ""}`}>
-      <div className="flex justify-between items-center mb-2">
-        <h3 className="text-lg font-semibold text-primary">
-          {speciesName}{" "}
-          <span className="text-sm font-normal">Lv.{pokemon.level}</span>
-          {pokemon.fainted && (
-            <span className="text-danger ml-1">(Fainted)</span>
-          )}
+    <div className={containerClasses} style={{ width: "200px", margin: "0 auto" }}>
+      <div className="flex justify-between items-center mb-2 px-2 pt-2">
+        <h3 className="text-sm font-semibold text-primary">
+          {speciesName} Lv.{pokemon.level}
         </h3>
       </div>
 
@@ -53,36 +67,45 @@ const PokemonCard: React.FC<PokemonCardProps> = ({ pokemon }) => {
         <img
           src={spriteUrl}
           alt={speciesName}
-          className="w-24 h-24 object-contain pixelated"
+          className="w-20 h-20 pixelated transition-opacity"
           style={{ imageRendering: "pixelated" }}
         />
       </div>
 
-      <div className="mb-2">
-        <div className="flex justify-between text-sm mb-1">
-          <span>
-            Status:{" "}
-            <span
-              className={
-                pokemon.status ? "text-warning font-medium" : "text-gray-500"
-              }
-            >
-              {pokemon.status || "None"}
-            </span>
-          </span>
-        </div>
-
-        <div className="flex justify-between text-sm mb-1">
+      <div className="px-2 pb-2">
+        <div className="flex justify-between text-xs mb-1">
           <span>
             HP: {pokemon.hp}/{pokemon.maxHp}
           </span>
           <span>{hpPercent}%</span>
         </div>
-
-        <div className="health-bar-bg">
-          <div className={barColorClass} style={{ width: `${hpPercent}%` }} />
+        <div className="health-bar-bg w-full h-2 bg-gray-300 rounded-full overflow-hidden">
+          <div
+            className={barColorClass}
+            style={{ width: `${hpPercent}%`, height: "100%" }}
+          />
+        </div>
+        <div className="text-xs mt-2">
+          Status:{" "}
+          <span
+            className={pokemon.status ? "text-warning font-medium" : "text-gray-500"}
+          >
+            {pokemon.status || "None"}
+          </span>
         </div>
       </div>
+
+      {/* If there's a stat change, display an arrow overlay */}
+      {statChange === "up" && (
+        <div className="absolute top-0 right-0 p-2">
+          <div className="stat-arrow-up">↑</div>
+        </div>
+      )}
+      {statChange === "down" && (
+        <div className="absolute top-0 right-0 p-2">
+          <div className="stat-arrow-down">↓</div>
+        </div>
+      )}
     </div>
   );
 };

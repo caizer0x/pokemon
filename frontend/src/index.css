@@ -2,50 +2,173 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Retro Pixel Font (Press Start 2P) - you can optionally self-host or use a direct link */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+/* Root color variables */
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-  color-scheme: light dark;
+  --primary-color: #FF0000; /* Pokemon Red vibe */
+  --secondary-color: #FFC600; /* Pokemon Yellow vibe */
+  --dark-color: #306230; /* Slightly earthy green */
+  --light-color: #E6F0FF;
+  --danger-color: #C03028;
+  --success-color: #78C850;
+  --warning-color: #F8D030;
+  --text-color: #333;
+  --background-color: #F8F8F8;
+
+  /* pixel-scaling */
+  --pixel-size: 3px;
+  --animation-duration: 0.7s;
 }
 
+/* Basic body styling */
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  @apply bg-light text-gray-800;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  font-family: 'Press Start 2P', monospace;
+  font-size: 14px;
+  line-height: 1.4;
 }
 
-@layer components {
-  .btn {
-    @apply px-4 py-2 rounded-md font-medium transition-colors;
-  }
+/* Container that mimics old Game Boy UI frame */
+.retro-screen {
+  max-width: 900px;
+  margin: 0 auto;
+  background: #D0C8C0;
+  border: 8px solid #888;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 4px 4px 0px #444;
+}
 
-  .btn-primary {
-    @apply bg-primary text-white hover:bg-dark;
-  }
+/* Generic button styling */
+.btn {
+  @apply inline-block cursor-pointer px-4 py-2 rounded-md font-medium transition-colors;
+  font-family: 'Press Start 2P', monospace;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
 
-  .btn-secondary {
-    @apply bg-secondary text-gray-800 hover:bg-warning;
-  }
+.btn-primary {
+  @apply bg-primary-color text-white hover:bg-danger-color;
+}
 
-  .card {
-    @apply bg-white rounded-lg shadow-md p-4;
-  }
+.btn-secondary {
+  @apply bg-secondary-color text-black hover:bg-warning-color;
+}
 
-  .health-bar-bg {
-    @apply w-full h-2 bg-gray-200 rounded-full overflow-hidden;
+/* Define custom classes for our color variables in a utilities layer */
+@layer utilities {
+  .bg-primary-color {
+    background-color: var(--primary-color);
   }
+  .bg-secondary-color {
+    background-color: var(--secondary-color);
+  }
+  .bg-danger-color {
+    background-color: var(--danger-color);
+  }
+  .bg-success {
+    background-color: var(--success-color);
+  }
+  .bg-warning-color {
+    background-color: var(--warning-color);
+  }
+  .bg-dark {
+    background-color: var(--dark-color);
+  }
+  .text-primary {
+    color: var(--primary-color);
+  }
+  .text-secondary {
+    color: var(--secondary-color);
+  }
+  .text-danger {
+    color: var(--danger-color);
+  }
+  .text-success {
+    color: var(--success-color);
+  }
+  .text-warning {
+    color: var(--warning-color);
+  }
+}
 
-  .health-bar-fill-high {
-    @apply bg-success h-full;
-  }
+/* Shake animation */
+@keyframes shake {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-3px, 0); }
+  40% { transform: translate(3px, 0); }
+  60% { transform: translate(-2px, 0); }
+  80% { transform: translate(2px, 0); }
+  100% { transform: translate(0, 0); }
+}
 
-  .health-bar-fill-medium {
-    @apply bg-warning h-full;
-  }
+@keyframes fadeInOut {
+  0% { opacity: 0; }
+  25% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; }
+}
 
-  .health-bar-fill-low {
-    @apply bg-danger h-full;
-  }
+/* Arrow animations */
+@keyframes arrowUp {
+  0% { opacity: 0; transform: translateY(10px); }
+  25% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-10px); }
+}
+
+@keyframes arrowDown {
+  0% { opacity: 0; transform: translateY(-10px); }
+  25% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(10px); }
+}
+
+.animate-shake {
+  animation: shake 0.6s ease-in-out;
+}
+
+.stat-arrow-up {
+  color: #66bb6a;
+  font-size: 0.9rem;
+  animation: arrowUp 2s linear forwards;
+}
+
+.stat-arrow-down {
+  color: #ef5350;
+  font-size: 0.9rem;
+  animation: arrowDown 2s linear forwards;
+}
+
+/* Fade in/out for switching. We'll fade out/in the Pokémon sprite. */
+.fade-switch {
+  transition: opacity 0.6s ease-in-out;
+  opacity: 1;
+}
+
+.fade-switch.hidden {
+  opacity: 0;
+}
+
+/* Utility classes for health bar background */
+.health-bar-bg {
+  @apply w-full h-2 bg-gray-300 rounded-full overflow-hidden;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background-color: #bbb;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-track {
+  background-color: #f0f0f0;
 }

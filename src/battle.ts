@@ -1,10 +1,13 @@
 import { Pokemon } from "./pokemon";
-import { Move } from "./move";
+import { Move as MoveClass } from "./move";  // Renamed to avoid conflict with the enum
 import { Action } from "./types";
 import { Species } from "../data/species";
 import { calculateEffectiveness } from "../data/types";
-import { Effect } from "../data/moves";
+import { Move as MoveEnum, Effect } from "../data/moves";
 
+/**
+ * The Battle class coordinates a turn-based battle between two teams.
+ */
 export class Battle {
   team1: Pokemon[];
   team2: Pokemon[];
@@ -59,21 +62,8 @@ export class Battle {
     action1 = this.handleBinding("team1", action1);
     action2 = this.handleBinding("team2", action2);
 
-    // Thrash skip (or lock into move) if needed, etc. We'll keep partial.
-
-    // Clear flinch from last turn so we can re-apply it if needed
-    // Actually we might keep a "flinched" boolean that resets each turn
-    // We'll do that in end-of-turn. For simplicity we do a new approach:
-    // We'll check if the defender is flinched after the attacker attacks, and if so, skip.
-    // For now we do an immediate approach in the turn order logic.
-
     const order = this.getTurnOrder(action1, action2);
 
-    // We store these so if a Pokemon flinches, we skip the other.
-    let firstHasActed = false;
-    let secondHasActed = false;
-
-    // Execute
     for (let i = 0; i < order.length; i++) {
       if (this.isBattleOver()) break;
       const [side, action] = order[i];
@@ -81,26 +71,19 @@ export class Battle {
       const attacker = side === "team1" ? this.active1 : this.active2;
       const defender = side === "team1" ? this.active2 : this.active1;
 
-      // If the defender is flinched, does it matter this turn or next turn?
-      // In Gen1, flinch only matters if the defender hasn't moved yet and is slower. We'll check the defender's flinch volatile if the defender is about to move.
-      // We'll handle it in the next iteration if the flinched side hasn't moved.
-
+      // Execute
       this.executeAction(side, action);
       if (this.isBattleOver()) break;
 
-      // If that action caused the other side to flinch, we must check if the other side hasn't moved yet. If so, skip it.
-      // Let's see if the opponent is flinched. We'll skip the opponent's upcoming action if it hasn't happened yet.
+      // If that action caused the opponent to flinch, skip the opponent's upcoming action if it hasn't happened yet
       if (i === 0) {
-        // after the first attacker acts
         const otherSide = order[1][0];
         const otherAction = order[1][1];
-        const otherMon = (otherSide === "team1") ? this.active1 : this.active2;
+        const otherMon = otherSide === "team1" ? this.active1 : this.active2;
         if (otherMon.volatileStatus.includes("flinch")) {
-          // skip the second action
           this.addToLog(`${Species[otherMon.species]} flinched and couldn't move!`);
-          // remove flinch
           otherMon.removeVolatileStatus("flinch");
-          // don't run the second action
+          // Skip the second action
           break;
         }
       }
@@ -118,7 +101,7 @@ export class Battle {
     this.addToLog(
       `${side === "team1" ? "Team 1" : "Team 2"} switched ${Species[oldMon.species]} for ${Species[newMon.species]}`
     );
-    // return no-op
+    // return no-op move
     return { type: "move", move: null };
   }
 
@@ -156,7 +139,10 @@ export class Battle {
     return action;
   }
 
-  getTurnOrder(action1: Action, action2: Action): [string, Action][] {
+  /**
+   * Change to returning [("team1"|"team2"), Action][]
+   */
+  getTurnOrder(action1: Action, action2: Action): [("team1"|"team2"), Action][] {
     const speed1 = this.active1.getEffectiveStat("spe");
     const speed2 = this.active2.getEffectiveStat("spe");
     if (speed1 === speed2) {
@@ -177,7 +163,7 @@ export class Battle {
       return;
     }
 
-    // Check if attacker is paralyzed fully
+    // Check for paralysis
     if (attacker.status === "paralysis" && Math.random() < 0.25) {
       this.addToLog(`${Species[attacker.species]} is paralyzed and can't move!`);
       return;
@@ -185,7 +171,6 @@ export class Battle {
 
     // Check if asleep
     if (attacker.status === "sleep") {
-      // 1/3 chance to wake
       if (Math.random() < 0.33) {
         attacker.cureStatus();
         this.addToLog(`${Species[attacker.species]} woke up!`);
@@ -197,7 +182,6 @@ export class Battle {
 
     // Check freeze
     if (attacker.status === "freeze") {
-      // 10% chance to thaw each turn
       if (Math.random() < 0.1) {
         attacker.cureStatus();
         this.addToLog(`${Species[attacker.species]} thawed out!`);
@@ -207,40 +191,33 @@ export class Battle {
       }
     }
 
-    // If thrashing, user must use that move. We'll skip detailed logic.
-
     this.addToLog(`${Species[attacker.species]} used ${action.move.name}!`);
 
-    // Check "Swift" ignoring accuracy
+    // Check Swift ignoring accuracy
     let isGuaranteedHit = false;
     if (action.move.effect === Effect.Swift) {
       isGuaranteedHit = true;
     }
 
-    // Check OHKO moves: low accuracy formula, e.g. 30%. Let's do a simple check if it has effect=OHKO
+    // Possibly an OHKO move
     let moveAcc = action.move.accuracy;
     if (action.move.effect === Effect.OHKO) {
-      // Some games do special OHKO formula: ( (AttackerSpeed - DefenderSpeed) / 512 ) + base. We'll skip.
-      // We'll just do base 30% from the MoveData.
-      // If the defender's level is higher, it always fails, etc. We'll skip.
+      // We'll keep it simple
     }
 
-    // Jump Kick / High Jump Kick => recoil if miss
+    // Jump Kick or High Jump Kick => recoil if miss
     const isJumpKick = (action.move.effect === Effect.JumpKick);
 
-    // Accuracy check with 1/256 bug (unless Swift)
+    // Accuracy check
     let hits = true;
     if (!isGuaranteedHit) {
       const accuracyRoll = Math.random() * 100;
-      // JumpKick or not
       if (accuracyRoll >= moveAcc || Math.random() < 1/256) {
         hits = false;
       }
     }
     if (!hits) {
       this.addToLog(`${Species[attacker.species]}'s attack missed!`);
-      // If it's JumpKick => recoil 1HP or damage?
-      // In Gen1, if Jump Kick misses, user takes 1/8 max HP recoil or 1/2? It's complicated. Actually, in Gen1, it's 1HP crash damage if they miss.
       if (isJumpKick) {
         attacker.applyDamage(1);
         this.addToLog(`${Species[attacker.species]} kept going and crashed!`);
@@ -248,11 +225,10 @@ export class Battle {
       return;
     }
 
-    // Calculate damage (multi-hit or specialDamage)
+    // Multi-hit
     let totalDamage = 0;
     const hitsCount = action.move.getHitCount();
     for (let i = 0; i < hitsCount; i++) {
-      // Re-check if the target fainted mid multi-hit
       if (defender.isFainted()) break;
       const dmg = this.calculateDamage(attacker, defender, action.move);
       defender.applyDamage(dmg);
@@ -274,17 +250,16 @@ export class Battle {
       }
     }
 
-    // Apply side-effect
+    // Side effect
     const effectMsg = action.move.applyEffect(attacker, defender, totalDamage);
     if (effectMsg) {
       this.addToLog(effectMsg);
     }
 
-    // If partial trap
+    // Binding?
     if (action.move.effect === Effect.Binding && !defender.isFainted()) {
       if (side === "team1") {
         this.isBound2 = true;
-        // 2-5 turn
         this.boundTurns2 = Math.floor(Math.random() * 4) + 2;
       } else {
         this.isBound1 = true;
@@ -292,20 +267,16 @@ export class Battle {
       }
     }
 
-    // If hyper beam effect and defender not fainted => set recharge
+    // Hyper Beam recharge
     if (action.move.effect === Effect.HyperBeam && !defender.isFainted()) {
       if (side === "team1") this.isRecharging1 = true;
       else this.isRecharging2 = true;
     }
   }
 
-  calculateDamage(attacker: Pokemon, defender: Pokemon, move: Move): number {
-    // If it's specialDamage effect (Seismic Toss, Dragon Rage, etc.), we do that logic:
+  calculateDamage(attacker: Pokemon, defender: Pokemon, move: MoveClass): number {
+    // SpecialDamage (Seismic Toss, DragonRage, etc.)
     if (move.effect === Effect.SpecialDamage) {
-      // e.g. SeismicToss, Night Shade => user level
-      // DragonRage => 40 HP
-      // SonicBoom => 20 HP
-      // Psywave => random up to ~1.5 * user level
       const id = move.moveId;
       if (id === MoveEnum.SeismicToss || id === MoveEnum.NightShade) {
         return attacker.level;
@@ -317,14 +288,12 @@ export class Battle {
         return 20;
       }
       if (id === MoveEnum.Psywave) {
-        // 1..(1.5 * level) approx
         const max = Math.floor(attacker.level * 1.5);
         return 1 + Math.floor(Math.random() * max);
       }
       return 0;
     }
     if (move.effect === Effect.SuperFang) {
-      // Halves current HP
       return Math.floor(defender.currentHp / 2);
     }
 
@@ -342,13 +311,11 @@ export class Battle {
       Math.floor(((2 * attacker.level) / 5 + 2) * atk * move.power / def) / 50
     ) + 2;
 
-    // Critical hit chance => speed/512 if not Focus Energy bug
-    // We'll keep it simpler
+    // Critical hits
     let crit = false;
     let critChance = attacker.baseStats.spe / 512;
-    // Focus Energy might increase it 4x or 0.25x if bug. We'll skip.
     if (move.hasHighCritical()) {
-      critChance *= 8; // e.g. Slash
+      critChance *= 8;
     }
     if (Math.random() < critChance) {
       baseDamage *= 2;
@@ -367,7 +334,7 @@ export class Battle {
     // Type effectiveness
     const typeMult = this.getTypeEffectiveness(defender, move);
 
-    // Random factor 217-255
+    // Random factor
     const randFactor = Math.floor(Math.random() * 39) + 217;
 
     let damage = Math.floor(baseDamage * stab * typeMult * (randFactor / 255));
@@ -377,7 +344,7 @@ export class Battle {
       damage = Math.max(1, damage);
     }
 
-    // Reflect halves physical if up
+    // Reflect or Light Screen
     if (
       isPhysical &&
       defender.volatileStatus.includes("reflect") &&
@@ -385,7 +352,6 @@ export class Battle {
     ) {
       damage = Math.floor(damage / 2);
     }
-    // LightScreen halves special if up
     if (
       !isPhysical &&
       defender.volatileStatus.includes("lightscreen") &&
@@ -397,30 +363,28 @@ export class Battle {
     return damage;
   }
 
-  getTypeEffectiveness(defender: Pokemon, move: Move): number {
+  getTypeEffectiveness(defender: Pokemon, move: MoveClass): number {
     return calculateEffectiveness(defender.types, move.type);
   }
 
   applyEndOfTurn(): void {
     this.addToLog("--- End of turn effects ---");
 
-    // handle burn damage
+    // handle burn/poison
     for (const mon of [this.active1, this.active2]) {
       if (mon.status === "burn" && !mon.isFainted()) {
         const dmg = Math.floor(mon.stats.hp / 8);
         mon.applyDamage(dmg);
         this.addToLog(`${Species[mon.species]} was hurt by its burn (${dmg} dmg)!`);
       }
-      // poison
       if (mon.status === "poison" && !mon.isFainted()) {
         const dmg = Math.floor(mon.stats.hp / 16);
         mon.applyDamage(dmg);
         this.addToLog(`${Species[mon.species]} was hurt by poison (${dmg} dmg)!`);
       }
-      // confusion? We'll do a check at the start of the turn typically. Skipping for brevity.
       // leech seed
       if (mon.volatileStatus.includes("leechSeed") && !mon.isFainted()) {
-        const other = (mon === this.active1) ? this.active2 : this.active1;
+        const other = mon === this.active1 ? this.active2 : this.active1;
         if (!other.isFainted()) {
           const dmg = Math.floor(mon.stats.hp / 16);
           mon.applyDamage(dmg);
@@ -429,8 +393,6 @@ export class Battle {
         }
       }
     }
-
-    // binding residual handled as skip earlier. We do partial here.
 
     // faint checks
     if (this.active1.isFainted()) {

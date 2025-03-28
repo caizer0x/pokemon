@@ -19,6 +19,7 @@ export type VolatileStatus =
   | "wrap"
   | "reflect"
   | "lightscreen"
+  | "flinch"  /* <-- Added flinch here */
   | null;
 
 export interface BaseStats {
@@ -64,5 +65,5 @@ export interface MoveData {
  * An Action can be either using a move or switching to another Pokémon.
  */
 export type Action =
-  | { type: "move"; move: any | null } // 'any' used for minimal friction; in practice replace with Move.
-  | { type: "switch"; pokemon: any }; // same note as above.
+  | { type: "move"; move: any | null }
+  | { type: "switch"; pokemon: any };
