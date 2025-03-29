@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import TeamView from "./TeamView";
+import OpponentTeamView from "./OpponentTeamView";
 import PokemonCard from "./PokemonCard";
 import { Species } from "../../../data/species";
 
@@ -273,7 +274,7 @@ const BattlePage: React.FC<BattlePageProps> = ({
     <div className="retro-screen">
       <div className="pokedex-screen">
         {/* Battle Status Bar */}
-        <div className="bg-pokedex-screen rounded-lg p-4 mb-6 border-2 border-dark-color">
+        <div className="bg-pokedex-screen rounded-lg p-2 mb-4 border-2 border-dark-color">
           <div className="flex justify-between items-center">
             <div className="flex items-center">
               <div className="pokedex-button pokedex-button-red w-4 h-4 mr-2 animate-blink"></div>
@@ -303,9 +304,19 @@ const BattlePage: React.FC<BattlePageProps> = ({
           </div>
         </div>
 
-        {/* Active Pokémon */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-          <div className="card">
+        {/* Opponent's Team at the top */}
+        <div className="mb-4">
+          <h2 className="text-xs font-bold text-danger mb-2 border-b-2 border-danger-color pb-1 flex items-center">
+            <div className="pokeball mr-2"></div>
+            OPPONENT'S TEAM
+          </h2>
+          <OpponentTeamView team={team2} activeIndex={active2Index} />
+        </div>
+
+        {/* Main Battle Area - Active Pokémon */}
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          {/* Left side - Your active Pokémon */}
+          <div className="flex-1 card">
             <h3 className="text-xs font-bold text-primary mb-2 flex items-center">
               <div className="pokeball w-4 h-4 mr-2"></div>
               YOUR ACTIVE POKÉMON: {Species[active1.species]}
@@ -319,30 +330,15 @@ const BattlePage: React.FC<BattlePageProps> = ({
                 isActive={true}
               />
             </div>
-            {active1.fainted ? (
+            {active1.fainted && (
               <div className="text-center p-2 bg-danger-color text-white text-xs font-medium rounded-md animate-blink">
                 THIS POKÉMON FAINTED! PLEASE SWITCH.
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-2 mt-4">
-                {(active1.moves || []).map((move, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleMove(i)}
-                    disabled={isOver || active1.fainted}
-                    className={`btn btn-primary text-xs`}
-                  >
-                    <div className="font-medium">{move.name}</div>
-                    <div className="text-[10px]">
-                      PWR: {move.power} ACC: {move.accuracy}
-                    </div>
-                  </button>
-                ))}
               </div>
             )}
           </div>
 
-          <div className="card">
+          {/* Right side - Opponent's active Pokémon */}
+          <div className="flex-1 card">
             <h3 className="text-xs font-bold text-danger mb-2 flex items-center">
               <div className="pokeball w-4 h-4 mr-2"></div>
               OPPONENT'S ACTIVE POKÉMON: {Species[active2.species]}
@@ -359,40 +355,128 @@ const BattlePage: React.FC<BattlePageProps> = ({
           </div>
         </div>
 
-        {/* Teams */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div>
-            <h2 className="text-sm font-bold text-primary mb-3 border-b-2 border-primary-color pb-2 flex items-center">
+        {/* Moves Section */}
+        {!active1.fainted && (
+          <div className="mb-6">
+            <h3 className="text-xs font-bold text-primary mb-2 border-b-2 border-primary-color pb-1 flex items-center">
               <div className="pokeball mr-2"></div>
-              YOUR TEAM (TEAM 1)
-            </h2>
-            <TeamView
-              team={team1}
-              activeIndex={active1Index}
-              onSwitch={handleSwitch}
-              isOpponent={false}
-            />
+              MOVES
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {(active1.moves || []).map((move, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleMove(i)}
+                  disabled={isOver || active1.fainted}
+                  className={`btn btn-primary text-xs`}
+                >
+                  <div className="font-medium">{move.name}</div>
+                  <div className="text-[10px]">
+                    PWR: {move.power} ACC: {move.accuracy}
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
-          <div>
-            <h2 className="text-sm font-bold text-danger mb-3 border-b-2 border-danger-color pb-2 flex items-center">
-              <div className="pokeball mr-2"></div>
-              OPPONENT'S TEAM (TEAM 2)
-            </h2>
-            <TeamView
-              team={team2}
-              activeIndex={active2Index}
-              isOpponent={true}
-            />
+        )}
+
+        {/* Your Team at the bottom with all 6 Pokémon */}
+        <div className="mb-4">
+          <h2 className="text-xs font-bold text-primary mb-2 border-b-2 border-primary-color pb-1 flex items-center">
+            <div className="pokeball mr-2"></div>
+            YOUR TEAM
+          </h2>
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+            {team1.map((pokemon, i) => {
+              const isActive = i === active1Index;
+              const canSwitch = !pokemon.fainted && !isActive;
+
+              return (
+                <div
+                  key={i}
+                  className={`relative cursor-pointer ${
+                    isActive ? "ring-4 ring-secondary-color" : ""
+                  }`}
+                  onClick={() => {
+                    if (canSwitch) {
+                      handleSwitch(i);
+                    }
+                  }}
+                >
+                  <div
+                    className={`bg-white rounded-lg p-2 border-2 ${
+                      isActive ? "border-secondary-color" : "border-dark-color"
+                    } ${pokemon.fainted ? "opacity-60" : ""}`}
+                  >
+                    {/* Species number */}
+                    <div className="absolute top-0 left-0 bg-primary-color text-white text-[8px] px-1 rounded-br-md">
+                      #{pokemon.species}
+                    </div>
+
+                    {/* Pokémon image */}
+                    <div className="flex justify-center">
+                      <img
+                        src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemon.species}.png`}
+                        alt={Species[pokemon.species]}
+                        className="w-12 h-12 pixelated"
+                        style={{ imageRendering: "pixelated" }}
+                      />
+                    </div>
+
+                    {/* HP bar - always visible but minimal */}
+                    <div
+                      className="health-bar-bg mt-1"
+                      style={{ height: "4px" }}
+                    >
+                      <div
+                        className={`${
+                          pokemon.hp > pokemon.maxHp / 2
+                            ? "bg-success"
+                            : pokemon.hp > pokemon.maxHp / 5
+                            ? "bg-warning-color"
+                            : "bg-danger-color"
+                        } transition-all duration-500`}
+                        style={{
+                          width: `${Math.floor(
+                            (pokemon.hp / pokemon.maxHp) * 100
+                          )}%`,
+                          height: "100%",
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Status badge - minimal */}
+                  <div className="text-[8px] mt-1 text-center">
+                    <span
+                      className={`${
+                        pokemon.fainted
+                          ? "bg-danger-color"
+                          : isActive
+                          ? "bg-secondary-color"
+                          : "bg-success"
+                      } text-white py-0.5 px-1 rounded-full border border-dark-color shadow-sm`}
+                    >
+                      {pokemon.fainted
+                        ? "FAINTED"
+                        : isActive
+                        ? "ACTIVE"
+                        : "AVAILABLE"}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Battle Log Section */}
-        <div className="mt-8">
-          <h3 className="text-sm font-bold mb-2 border-b-2 border-dark-color pb-1 flex items-center">
+        {/* Battle Log Section - Smaller on mobile */}
+        <div className="mt-4">
+          <h3 className="text-xs font-bold mb-2 border-b-2 border-dark-color pb-1 flex items-center">
             <div className="pokeball mr-2"></div>
             BATTLE LOG
           </h3>
-          <div className="battle-log h-64 overflow-y-auto text-xs leading-relaxed">
+          <div className="battle-log h-32 md:h-48 overflow-y-auto text-xs leading-relaxed">
             {displayedLogs.length === 0 ? (
               <p className="text-gray-700 italic text-center">
                 BATTLE LOG WILL APPEAR HERE...

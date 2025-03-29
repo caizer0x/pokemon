@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Species } from "../../../data/species";
 
 interface MoveInfo {
@@ -36,6 +36,8 @@ const PokemonCard: React.FC<PokemonCardProps> = ({
   fadeSwitch = false,
   isActive = false,
 }) => {
+  const [isHovered, setIsHovered] = useState(false);
+
   const hpPercent = Math.floor((pokemon.hp / pokemon.maxHp) * 100);
   const barColorClass =
     hpPercent > 50
@@ -61,16 +63,27 @@ const PokemonCard: React.FC<PokemonCardProps> = ({
     pokemon.fainted ? "opacity-60" : "",
     shake ? "animate-shake" : "",
     fadeSwitch ? "fade-switch" : "",
+    !isActive && "transition-all duration-300",
+    !isActive && isHovered && "z-10 shadow-lg",
   ].join(" ");
+
+  // Show details if it's an active Pokemon or if a non-active Pokemon is hovered
+  const showDetails = isActive || isHovered;
 
   return (
     <div
       className={containerClasses}
       style={{
-        width: isActive ? "220px" : "160px",
+        width: isActive ? "220px" : isHovered ? "180px" : "120px",
         margin: "0 auto",
-        transform: isActive ? "scale(1)" : "scale(0.85)",
+        transform: isActive
+          ? "scale(1)"
+          : isHovered
+          ? "scale(0.95)"
+          : "scale(0.85)",
       }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       {/* Pokemon ID display like a Pokedex */}
       <div className="absolute top-2 left-2 bg-primary-color text-white text-xs px-2 py-1 rounded-md">
@@ -78,7 +91,11 @@ const PokemonCard: React.FC<PokemonCardProps> = ({
       </div>
 
       <div className="flex justify-center items-center mb-2 pt-2">
-        <h3 className="text-sm font-semibold text-dark-color text-center mt-4">
+        <h3
+          className={`${
+            isActive ? "text-sm" : "text-xs"
+          } font-semibold text-dark-color text-center mt-4`}
+        >
           {speciesName.toUpperCase()}{" "}
           <span className="text-primary-color">Lv.{pokemon.level}</span>
         </h3>
@@ -88,12 +105,15 @@ const PokemonCard: React.FC<PokemonCardProps> = ({
         <img
           src={spriteUrl}
           alt={speciesName}
-          className="w-24 h-24 pixelated transition-opacity"
+          className={`${
+            isActive ? "w-24 h-24" : "w-16 h-16"
+          } pixelated transition-opacity`}
           style={{ imageRendering: "pixelated" }}
         />
       </div>
 
-      <div className="px-3 pb-3">
+      {/* Only show details if active or hovered */}
+      <div className={`px-3 pb-3 ${!showDetails && !isActive ? "hidden" : ""}`}>
         <div className="flex justify-between text-xs mb-1 font-bold">
           <span className="text-dark-color">
             HP: {pokemon.hp}/{pokemon.maxHp}
@@ -127,6 +147,18 @@ const PokemonCard: React.FC<PokemonCardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Always show HP bar for non-active Pokemon, even when not hovered */}
+      {!isActive && !showDetails && (
+        <div className="px-3 pb-3">
+          <div className="health-bar-bg mt-1 mb-2">
+            <div
+              className={`${barColorClass} transition-all duration-500`}
+              style={{ width: `${hpPercent}%`, height: "100%" }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* If there's a stat change, display an arrow overlay */}
       {statChange === "up" && (

@@ -32,16 +32,22 @@ const TeamView: React.FC<TeamViewProps> = ({
   onSwitch,
   isOpponent,
 }) => {
+  // This component is now only used for the player's team
+  // The opponent's team uses OpponentTeamView
+  if (isOpponent) {
+    console.warn(
+      "TeamView should not be used for opponent's team. Use OpponentTeamView instead."
+    );
+  }
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-3 mb-6">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 mb-6">
       {team.map((pokemon, i) => {
         // we can switch if:
-        // - not the opponent
         // - a switch callback is present
         // - pokemon is not fainted
         // - i != activeIndex
-        const canSwitch =
-          !isOpponent && onSwitch && !pokemon.fainted && i !== activeIndex;
+        const canSwitch = onSwitch && !pokemon.fainted && i !== activeIndex;
         const isActive = i === activeIndex;
 
         // Skip the active Pokemon as it's shown separately
@@ -50,41 +56,37 @@ const TeamView: React.FC<TeamViewProps> = ({
         }
 
         return (
-          <div key={i} className="flex flex-col items-center">
+          <div
+            key={i}
+            className={`flex flex-col items-center ${
+              canSwitch
+                ? "cursor-pointer hover:scale-105 transition-transform"
+                : ""
+            }`}
+            onClick={() => {
+              if (canSwitch && onSwitch) {
+                onSwitch(i);
+              }
+            }}
+          >
             <div className="relative w-full">
               <div className="relative z-10">
                 <PokemonCard pokemon={pokemon} isActive={false} />
               </div>
             </div>
 
-            {/* Status badge */}
-            <div className="text-xs mt-1 mb-1 text-center">
+            {/* Status badge - smaller and more compact */}
+            <div className="text-xs mt-1 text-center">
               {pokemon.fainted ? (
-                <span className="bg-danger-color text-white text-[9px] font-medium py-1 px-2 rounded-full border border-dark-color shadow-md animate-blink">
+                <span className="bg-danger-color text-white text-[8px] font-medium py-0.5 px-1.5 rounded-full border border-dark-color shadow-sm animate-blink">
                   FAINTED
                 </span>
-              ) : !isOpponent ? (
-                <span className="bg-success text-white text-[9px] font-medium py-1 px-2 rounded-full border border-dark-color shadow-md">
-                  AVAILABLE
-                </span>
               ) : (
-                <span className="bg-dark text-white text-[9px] font-medium py-1 px-2 rounded-full border border-dark-color shadow-md">
-                  STANDBY
+                <span className="bg-success text-white text-[8px] font-medium py-0.5 px-1.5 rounded-full border border-dark-color shadow-sm">
+                  AVAILABLE
                 </span>
               )}
             </div>
-
-            {canSwitch && (
-              <button
-                onClick={() => {
-                  onSwitch(i);
-                }}
-                className="btn btn-secondary mt-1 w-full text-[9px] py-1 px-2 font-bold flex items-center justify-center"
-              >
-                <div className="pokeball w-3 h-3 mr-1"></div>
-                SWITCH
-              </button>
-            )}
           </div>
         );
       })}
