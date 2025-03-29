@@ -40,18 +40,47 @@ function App() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="bg-primary text-white p-4 shadow-md">
+      <header className="bg-primary-color text-white p-4 shadow-md relative">
         <div className="container mx-auto">
-          <h1 className="text-2xl md:text-3xl font-bold text-center">
-            Pokémon Battle (Gen 1)
-          </h1>
+          <div className="flex items-center justify-center">
+            <div className="pokeball animate-rotate mr-3"></div>
+            <h1 className="text-2xl md:text-3xl font-bold text-center">
+              Pokémon Battle
+            </h1>
+            <div className="pokeball animate-rotate ml-3"></div>
+          </div>
+          <div className="text-center text-xs mt-2 animate-blink">
+            GENERATION I
+          </div>
+        </div>
+
+        {/* Decorative elements */}
+        <div className="absolute top-2 right-2 flex space-x-2">
+          <div className="pokedex-button pokedex-button-red"></div>
+          <div className="pokedex-button pokedex-button-yellow"></div>
+          <div className="pokedex-button pokedex-button-green"></div>
         </div>
       </header>
+
       <main className="flex-1 container mx-auto p-4">
         <BattlePage battleState={battleState} onSendMessage={sendMessage} />
       </main>
-      <footer className="bg-dark text-white p-3 text-center text-sm">
-        <p>Pokémon Battle Engine - Generation 1</p>
+
+      <footer className="bg-dark text-white p-3 text-center text-xs">
+        <div className="flex items-center justify-center">
+          <div
+            className="pokeball mr-2"
+            style={{ width: "14px", height: "14px" }}
+          ></div>
+          <p>Pokémon Battle Engine - Generation I</p>
+          <div
+            className="pokeball ml-2"
+            style={{ width: "14px", height: "14px" }}
+          ></div>
+        </div>
+        <div className="mt-1 text-[10px] opacity-70">
+          © {new Date().getFullYear()} Pokémon Trainer
+        </div>
       </footer>
     </div>
   );

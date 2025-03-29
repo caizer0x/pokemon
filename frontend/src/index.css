@@ -1,21 +1,24 @@
+@import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Retro Pixel Font (Press Start 2P) - you can optionally self-host or use a direct link */
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-
 /* Root color variables */
 :root {
-  --primary-color: #FF0000; /* Pokemon Red vibe */
-  --secondary-color: #FFC600; /* Pokemon Yellow vibe */
-  --dark-color: #306230; /* Slightly earthy green */
-  --light-color: #E6F0FF;
-  --danger-color: #C03028;
-  --success-color: #78C850;
-  --warning-color: #F8D030;
-  --text-color: #333;
-  --background-color: #F8F8F8;
+  --primary-color: #cc0000; /* Pokedex Red */
+  --secondary-color: #3b4cca; /* Pokemon Blue */
+  --dark-color: #1a1a1a; /* Almost Black */
+  --light-color: #f0f0f0; /* Light Gray */
+  --danger-color: #ff0000; /* Bright Red */
+  --success-color: #4caf50; /* Green */
+  --warning-color: #ffde00; /* Pokemon Yellow */
+  --text-color: #111111;
+  --background-color: #f8f8f8;
+  --pokedex-border: #b30000; /* Darker Red for Pokedex Border */
+  --pokedex-screen: #98cb98; /* Classic Gameboy Screen Green */
+  --pokedex-button-blue: #2a75bb; /* Pokedex Button Blue */
+  --pokedex-button-yellow: #ffcb05; /* Pokedex Button Yellow */
 
   /* pixel-scaling */
   --pixel-size: 3px;
@@ -29,36 +32,139 @@ body {
   min-height: 100vh;
   background-color: var(--background-color);
   color: var(--text-color);
-  font-family: 'Press Start 2P', monospace;
+  font-family: "Press Start 2P", monospace;
   font-size: 14px;
   line-height: 1.4;
+  background-image: url('data:image/svg+xml;utf8,<svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><rect width="10" height="10" fill="%23f5f5f5"/><rect x="10" y="10" width="10" height="10" fill="%23f5f5f5"/><rect x="10" y="0" width="10" height="10" fill="%23ebebeb"/><rect x="0" y="10" width="10" height="10" fill="%23ebebeb"/></svg>');
+  background-size: 20px 20px;
 }
 
-/* Container that mimics old Game Boy UI frame */
+/* Container that mimics Pokedex UI frame */
 .retro-screen {
   max-width: 900px;
   margin: 0 auto;
-  background: #D0C8C0;
-  border: 8px solid #888;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 4px 4px 0px #444;
+  background: var(--primary-color);
+  border: 12px solid var(--pokedex-border);
+  border-radius: 15px;
+  padding: 20px;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Pokedex lights and details */
+.retro-screen::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 60px;
+  height: 60px;
+  background: radial-gradient(circle, white 0%, #58a6ff 40%, #2a75bb 60%);
+  border-radius: 50%;
+  border: 5px solid white;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  z-index: 1;
+}
+
+.retro-screen::after {
+  content: "";
+  position: absolute;
+  top: 20px;
+  left: 90px;
+  display: flex;
+  gap: 10px;
+}
+
+/* Pokedex screen inner */
+.pokedex-screen {
+  background-color: white;
+  border-radius: 10px;
+  border: 3px solid var(--dark-color);
+  padding: 15px;
+  margin-top: 50px;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
+  position: relative;
+}
+
+/* Pokedex buttons */
+.pokedex-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+  justify-content: center;
+}
+
+.pokedex-button {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid var(--dark-color);
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
+}
+
+.pokedex-button-red {
+  background-color: var(--danger-color);
+}
+
+.pokedex-button-blue {
+  background-color: var(--pokedex-button-blue);
+}
+
+.pokedex-button-yellow {
+  background-color: var(--pokedex-button-yellow);
+}
+
+.pokedex-button-green {
+  background-color: var(--success-color);
 }
 
 /* Generic button styling */
 .btn {
   @apply inline-block cursor-pointer px-4 py-2 rounded-md font-medium transition-colors;
-  font-family: 'Press Start 2P', monospace;
+  font-family: "Press Start 2P", monospace;
   text-transform: uppercase;
   letter-spacing: 1px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2);
+  transform: translateY(0);
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.btn:active {
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+  transform: translateY(3px);
+}
+
+.btn::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: left 0.5s;
+}
+
+.btn:hover::after {
+  left: 100%;
 }
 
 .btn-primary {
   @apply bg-primary-color text-white hover:bg-danger-color;
+  border: 2px solid var(--dark-color);
 }
 
 .btn-secondary {
-  @apply bg-secondary-color text-black hover:bg-warning-color;
+  @apply bg-secondary-color text-white hover:bg-secondary-color;
+  border: 2px solid var(--dark-color);
 }
 
 /* Define custom classes for our color variables in a utilities layer */
@@ -81,6 +187,9 @@ body {
   .bg-dark {
     background-color: var(--dark-color);
   }
+  .bg-pokedex-screen {
+    background-color: var(--pokedex-screen);
+  }
   .text-primary {
     color: var(--primary-color);
   }
@@ -98,77 +207,231 @@ body {
   }
 }
 
+/* Card styling */
+.card {
+  background-color: white;
+  border-radius: 10px;
+  border: 3px solid var(--dark-color);
+  padding: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+}
+
 /* Shake animation */
 @keyframes shake {
-  0% { transform: translate(0, 0); }
-  20% { transform: translate(-3px, 0); }
-  40% { transform: translate(3px, 0); }
-  60% { transform: translate(-2px, 0); }
-  80% { transform: translate(2px, 0); }
-  100% { transform: translate(0, 0); }
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  15% {
+    transform: translate(-5px, 0) rotate(-5deg);
+  }
+  30% {
+    transform: translate(5px, 0) rotate(5deg);
+  }
+  45% {
+    transform: translate(-5px, 0) rotate(-3deg);
+  }
+  60% {
+    transform: translate(5px, 0) rotate(3deg);
+  }
+  75% {
+    transform: translate(-3px, 0) rotate(-1deg);
+  }
+  90% {
+    transform: translate(3px, 0) rotate(1deg);
+  }
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
 }
 
 @keyframes fadeInOut {
-  0% { opacity: 0; }
-  25% { opacity: 1; }
-  75% { opacity: 1; }
-  100% { opacity: 0; }
+  0% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 /* Arrow animations */
 @keyframes arrowUp {
-  0% { opacity: 0; transform: translateY(10px); }
-  25% { opacity: 1; }
-  75% { opacity: 1; }
-  100% { opacity: 0; transform: translateY(-10px); }
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(1);
+  }
+  25% {
+    opacity: 1;
+    transform: translateY(0) scale(1.2);
+  }
+  75% {
+    opacity: 1;
+    transform: translateY(-5px) scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-15px) scale(1);
+  }
 }
 
 @keyframes arrowDown {
-  0% { opacity: 0; transform: translateY(-10px); }
-  25% { opacity: 1; }
-  75% { opacity: 1; }
-  100% { opacity: 0; transform: translateY(10px); }
+  0% {
+    opacity: 0;
+    transform: translateY(-10px) scale(1);
+  }
+  25% {
+    opacity: 1;
+    transform: translateY(0) scale(1.2);
+  }
+  75% {
+    opacity: 1;
+    transform: translateY(5px) scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(15px) scale(1);
+  }
+}
+
+/* Pokeball animation */
+@keyframes rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .animate-shake {
-  animation: shake 0.6s ease-in-out;
+  animation: shake 0.8s ease-in-out;
+}
+
+.animate-rotate {
+  animation: rotate 2s linear infinite;
+}
+
+.animate-blink {
+  animation: blink 1s ease-in-out infinite;
 }
 
 .stat-arrow-up {
   color: #66bb6a;
-  font-size: 0.9rem;
+  font-size: 1.2rem;
   animation: arrowUp 2s linear forwards;
+  text-shadow: 0 0 5px rgba(102, 187, 106, 0.7);
 }
 
 .stat-arrow-down {
   color: #ef5350;
-  font-size: 0.9rem;
+  font-size: 1.2rem;
   animation: arrowDown 2s linear forwards;
+  text-shadow: 0 0 5px rgba(239, 83, 80, 0.7);
 }
 
 /* Fade in/out for switching. We'll fade out/in the Pokémon sprite. */
 .fade-switch {
-  transition: opacity 0.6s ease-in-out;
+  transition: all 0.6s ease-in-out;
   opacity: 1;
+  transform: scale(1) rotate(0deg);
 }
 
 .fade-switch.hidden {
   opacity: 0;
+  transform: scale(0.8) rotate(5deg);
 }
 
 /* Utility classes for health bar background */
 .health-bar-bg {
-  @apply w-full h-2 bg-gray-300 rounded-full overflow-hidden;
+  @apply w-full h-3 bg-gray-300 rounded-full overflow-hidden;
+  border: 1px solid var(--dark-color);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Pokeball styling */
+.pokeball {
+  width: 20px;
+  height: 20px;
+  background: linear-gradient(
+    to bottom,
+    #ff0000 0%,
+    #ff0000 50%,
+    white 50%,
+    white 100%
+  );
+  border-radius: 50%;
+  border: 2px solid black;
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+.pokeball::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  background-color: white;
+  border-radius: 50%;
+  border: 1px solid black;
+  transform: translate(-50%, -50%);
 }
 
 /* Scrollbar styling */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: #bbb;
-  border-radius: 3px;
+  background-color: var(--primary-color);
+  border-radius: 4px;
+  border: 1px solid var(--dark-color);
 }
 ::-webkit-scrollbar-track {
   background-color: #f0f0f0;
+  border-radius: 4px;
+}
+
+/* Battle log styling */
+.battle-log {
+  background-color: var(--pokedex-screen);
+  border: 3px solid var(--dark-color);
+  border-radius: 8px;
+  padding: 10px;
+  font-family: "Press Start 2P", monospace;
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--dark-color);
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
+  position: relative;
+}
+
+/* Pixelated image rendering */
+.pixelated {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
 }

@@ -32,16 +32,8 @@ const TeamView: React.FC<TeamViewProps> = ({
   onSwitch,
   isOpponent,
 }) => {
-  // Debug info
-  console.log("TeamView props:", {
-    team,
-    activeIndex,
-    isOpponent,
-    hasOnSwitch: !!onSwitch,
-  });
-
   return (
-    <div className="flex flex-wrap gap-4 mb-6">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-3 mb-6">
       {team.map((pokemon, i) => {
         // we can switch if:
         // - not the opponent
@@ -52,49 +44,45 @@ const TeamView: React.FC<TeamViewProps> = ({
           !isOpponent && onSwitch && !pokemon.fainted && i !== activeIndex;
         const isActive = i === activeIndex;
 
-        // Debug info for each Pokémon
-        console.log(`Pokémon ${i}:`, {
-          species: Species[pokemon.species],
-          canSwitch,
-          isActive,
-          fainted: pokemon.fainted,
-        });
+        // Skip the active Pokemon as it's shown separately
+        if (isActive) {
+          return null;
+        }
 
         return (
-          <div
-            key={i}
-            className={`flex flex-col items-center ${
-              isActive ? "ring-2 ring-secondary rounded-lg p-1" : ""
-            }`}
-          >
-            <PokemonCard pokemon={pokemon} />
+          <div key={i} className="flex flex-col items-center">
+            <div className="relative w-full">
+              <div className="relative z-10">
+                <PokemonCard pokemon={pokemon} isActive={false} />
+              </div>
+            </div>
 
-            {/* Always show the status of this Pokémon for debugging */}
+            {/* Status badge */}
             <div className="text-xs mt-1 mb-1 text-center">
-              {isActive ? (
-                <span className="bg-secondary text-xs font-medium py-1 px-2 rounded-full">
-                  Active
-                </span>
-              ) : pokemon.fainted ? (
-                <span className="bg-danger text-white text-xs font-medium py-1 px-2 rounded-full">
-                  Fainted
+              {pokemon.fainted ? (
+                <span className="bg-danger-color text-white text-[9px] font-medium py-1 px-2 rounded-full border border-dark-color shadow-md animate-blink">
+                  FAINTED
                 </span>
               ) : !isOpponent ? (
-                <span className="bg-success text-white text-xs font-medium py-1 px-2 rounded-full">
-                  Available
+                <span className="bg-success text-white text-[9px] font-medium py-1 px-2 rounded-full border border-dark-color shadow-md">
+                  AVAILABLE
                 </span>
-              ) : null}
+              ) : (
+                <span className="bg-dark text-white text-[9px] font-medium py-1 px-2 rounded-full border border-dark-color shadow-md">
+                  STANDBY
+                </span>
+              )}
             </div>
 
             {canSwitch && (
               <button
                 onClick={() => {
-                  console.log(`Switch button clicked for Pokémon ${i}`);
                   onSwitch(i);
                 }}
-                className="btn btn-secondary mt-2 w-full text-sm py-2 px-3 font-bold"
+                className="btn btn-secondary mt-1 w-full text-[9px] py-1 px-2 font-bold flex items-center justify-center"
               >
-                Switch to {Species[pokemon.species]}
+                <div className="pokeball w-3 h-3 mr-1"></div>
+                SWITCH
               </button>
             )}
           </div>
