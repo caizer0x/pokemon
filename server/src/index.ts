@@ -11,19 +11,19 @@ const server = http.createServer(app);
 app.use(cors());
 app.use(express.json());
 
-// Serve static files if needed (e.g., production build of frontend)
-app.use(express.static(path.join(__dirname, "../../frontend/dist")));
-
-// Setup the WebSocket server on top of our HTTP server
-setupWebSocket(server);
-
-// Example basic route or health check
+// Optional: Provide a quick health endpoint to test server:
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
+// Serve static files if needed (production build):
+app.use(express.static(path.join(__dirname, "../../frontend/dist")));
+
+// Initialize WebSocket
+setupWebSocket(server);
+
 // Start server
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
-  console.log("Server listening on port " + PORT);
+  console.log("Server (HTTP + WebSocket) listening on port " + PORT);
 });

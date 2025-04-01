@@ -1,8 +1,10 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import TeamView from "./TeamView";
 import OpponentTeamView from "./OpponentTeamView";
 import PokemonCard from "./PokemonCard";
 import { Species } from "../../../data/species";
+import BattleLog from "./BattleLog";
+import { useBattleLogQueue } from "../hooks/useBattleLogQueue";
 
 interface MoveInfo {
   name: string;
@@ -40,145 +42,21 @@ interface BattlePageProps {
   onSendMessage: (msg: any) => void;
 }
 
-/**
- * We'll maintain a queue for logs that haven't been displayed yet.
- * We'll display them one by one every 2 seconds. While a line is displayed,
- * we parse it for keywords to trigger certain animations (shake, stat changes, switch fade).
- */
-const BattlePage: React.FC<BattlePageProps> = ({
-  battleState,
-  onSendMessage,
-}) => {
-  const [displayedLogs, setDisplayedLogs] = useState<string[]>([]);
-  const [pendingLogs, setPendingLogs] = useState<string[]>([]);
-  const [animating, setAnimating] = useState<boolean>(false);
-
-  // We track ephemeral animations for each side's active card:
-  // e.g. { team1: {shake: false, statChange: null, fadeSwitch: false}, team2: {...} }
+const BattlePage: React.FC<BattlePageProps> = ({ battleState, onSendMessage }) => {
+  // ephemeral animations for each side's active card
   const [animations, setAnimations] = useState<{
-    team1: {
-      shake: boolean;
-      statChange: "up" | "down" | null;
-      fadeSwitch: boolean;
-    };
-    team2: {
-      shake: boolean;
-      statChange: "up" | "down" | null;
-      fadeSwitch: boolean;
-    };
+    team1: { shake: boolean; statChange: "up" | "down" | null; fadeSwitch: boolean };
+    team2: { shake: boolean; statChange: "up" | "down" | null; fadeSwitch: boolean };
   }>({
     team1: { shake: false, statChange: null, fadeSwitch: false },
     team2: { shake: false, statChange: null, fadeSwitch: false },
   });
 
-  // To detect if a switch occurred, track the last active1Index and active2Index
-  const [lastActive1Index, setLastActive1Index] = useState<number | undefined>(
-    undefined
-  );
-  const [lastActive2Index, setLastActive2Index] = useState<number | undefined>(
-    undefined
-  );
+  // track last indexes to detect switching
+  const [lastActive1Index, setLastActive1Index] = useState<number | undefined>(undefined);
+  const [lastActive2Index, setLastActive2Index] = useState<number | undefined>(undefined);
 
-  // When we get a new battleState, check for new logs to queue
-  useEffect(() => {
-    if (!battleState) return;
-
-    // If the active index changed from the previous, it means a switch or new Pokemon is out.
-    const switchingTeam1 =
-      lastActive1Index !== undefined &&
-      lastActive1Index !== battleState.active1Index;
-    const switchingTeam2 =
-      lastActive2Index !== undefined &&
-      lastActive2Index !== battleState.active2Index;
-
-    // Mark fadeSwitch = true if switching
-    if (switchingTeam1 || switchingTeam2) {
-      setAnimations((prev) => ({
-        team1: {
-          ...prev.team1,
-          fadeSwitch: switchingTeam1,
-        },
-        team2: {
-          ...prev.team2,
-          fadeSwitch: switchingTeam2,
-        },
-      }));
-      // We'll remove fade switch after 1 second
-      setTimeout(() => {
-        setAnimations((prev) => ({
-          team1: { ...prev.team1, fadeSwitch: false },
-          team2: { ...prev.team2, fadeSwitch: false },
-        }));
-      }, 1000);
-    }
-
-    setLastActive1Index(battleState.active1Index);
-    setLastActive2Index(battleState.active2Index);
-
-    // see if there's new lines in battleLog
-    const newLines = battleState.battleLog || [];
-    // figure out which lines are new compared to displayedLogs + pendingLogs
-    const allShown = [...displayedLogs, ...pendingLogs];
-    const fresh = newLines.slice(allShown.length);
-    if (fresh.length > 0) {
-      setPendingLogs((pl) => [...pl, ...fresh]);
-    }
-  }, [
-    battleState,
-    displayedLogs,
-    pendingLogs,
-    lastActive1Index,
-    lastActive2Index,
-  ]);
-
-  // Keep a ref for processing queue
-  const queueRef = useRef(false);
-
-  // Each time pendingLogs changes, if we're not currently animating a line, handle the next line
-  useEffect(() => {
-    if (queueRef.current) return; // already processing
-
-    const processNext = () => {
-      // If no more pending logs, done
-      if (pendingLogs.length === 0) {
-        queueRef.current = false;
-        return;
-      }
-      // Mark we are processing
-      queueRef.current = true;
-      setAnimating(true);
-
-      // take first line
-      const line = pendingLogs[0];
-      const remainder = pendingLogs.slice(1);
-
-      // parse line for special triggers (shake, stat up/down)
-      parseLineForAnimations(line);
-
-      // show it after 2 seconds
-      setTimeout(() => {
-        // Add to displayed
-        setDisplayedLogs((dl) => [...dl, line]);
-        // remove from pending
-        setPendingLogs(remainder);
-        setAnimating(false);
-
-        // reset ephemeral animations after each line
-        // but give 0.5s for the user to see the effect
-        setTimeout(() => {
-          resetAnimations();
-          // done with this line, process next
-          queueRef.current = false;
-          processNext();
-        }, 500);
-      }, 2000);
-    };
-
-    if (!animating && pendingLogs.length > 0) {
-      processNext();
-    }
-  }, [pendingLogs, animating]);
-
+  // Function to reset ephemeral animations after a delay
   function resetAnimations() {
     setAnimations((prev) => ({
       team1: { ...prev.team1, shake: false, statChange: null },
@@ -186,34 +64,36 @@ const BattlePage: React.FC<BattlePageProps> = ({
     }));
   }
 
+  // We'll parse lines for certain keywords to set the ephemeral animations
   function parseLineForAnimations(line: string) {
-    // We do simple substring checks. If "Team 1" or "Team 2" is the subject, we apply the effect to that side's animations
-    // Alternatively, it might say "Bulbasaur used Tackle!" or "Bulbasaur's Attack rose!"
-    // We'll guess "Team 1" or "Team 2" if present. If not, we try to see if it's about the active1 or active2 species.
+    if (!battleState) return;
     let side: "team1" | "team2" | null = null;
+
+    // if it includes active1 species or "Team 1"
     if (
       line.includes("Team 1") ||
-      (battleState && line.includes(Species[battleState.active1.species]))
+      line.includes(Species[battleState.active1.species])
     ) {
       side = "team1";
     } else if (
       line.includes("Team 2") ||
-      (battleState && line.includes(Species[battleState.active2.species]))
+      line.includes(Species[battleState.active2.species])
     ) {
       side = "team2";
     }
 
     if (!side) return;
 
-    // Shake if "hit", "damage", "super effective", "hurt"
+    // Shake if line includes certain keywords
     if (
       line.includes("damage") ||
       line.includes("hit") ||
       line.includes("hurt") ||
       line.includes("effective") ||
-      line.includes("crash")
+      line.includes("crash") ||
+      line.includes("KO")
     ) {
-      // Typically the 'defender' is shaking. Let's invert the side for the shake.
+      // Typically the 'defender' is shaking. We'll invert the side for the shake.
       const targetSide = side === "team1" ? "team2" : "team1";
       setAnimations((prev) => ({
         ...prev,
@@ -222,8 +102,6 @@ const BattlePage: React.FC<BattlePageProps> = ({
     }
 
     // Stat changes
-    // If line includes "rose", statChange = up
-    // If line includes "fell", statChange = down
     if (line.includes(" rose")) {
       setAnimations((prev) => ({
         ...prev,
@@ -237,6 +115,43 @@ const BattlePage: React.FC<BattlePageProps> = ({
     }
   }
 
+  // Our custom log queue hook
+  const { displayedLogs } = useBattleLogQueue({
+    battleState,
+    parseLineForAnimations,
+    resetAnimations,
+    lineDelay: 2000,
+    resetDelay: 500,
+  });
+
+  // handle some side-effect when battleState changes, e.g. switching detection
+  useEffect(() => {
+    if (!battleState) return;
+
+    const switchingTeam1 =
+      lastActive1Index !== undefined && lastActive1Index !== battleState.active1Index;
+    const switchingTeam2 =
+      lastActive2Index !== undefined && lastActive2Index !== battleState.active2Index;
+
+    if (switchingTeam1 || switchingTeam2) {
+      setAnimations((prev) => ({
+        team1: { ...prev.team1, fadeSwitch: switchingTeam1 },
+        team2: { ...prev.team2, fadeSwitch: switchingTeam2 },
+      }));
+      // remove fade after 1 second
+      setTimeout(() => {
+        setAnimations((prev) => ({
+          team1: { ...prev.team1, fadeSwitch: false },
+          team2: { ...prev.team2, fadeSwitch: false },
+        }));
+      }, 1000);
+    }
+
+    setLastActive1Index(battleState.active1Index);
+    setLastActive2Index(battleState.active2Index);
+  }, [battleState, lastActive1Index, lastActive2Index]);
+
+  // Handlers for moves and switching
   const handleMove = (moveIndex: number) => {
     if (!battleState || battleState.isOver) return;
     onSendMessage({ action: "move", moveIndex });
@@ -390,7 +305,6 @@ const BattlePage: React.FC<BattlePageProps> = ({
             {team1.map((pokemon, i) => {
               const isActive = i === active1Index;
               const canSwitch = !pokemon.fainted && !isActive;
-
               return (
                 <div
                   key={i}
@@ -470,25 +384,13 @@ const BattlePage: React.FC<BattlePageProps> = ({
           </div>
         </div>
 
-        {/* Battle Log Section - Smaller on mobile */}
+        {/* Battle Log Section */}
         <div className="mt-4">
           <h3 className="text-xs font-bold mb-2 border-b-2 border-dark-color pb-1 flex items-center">
             <div className="pokeball mr-2"></div>
             BATTLE LOG
           </h3>
-          <div className="battle-log h-32 md:h-48 overflow-y-auto text-xs leading-relaxed">
-            {displayedLogs.length === 0 ? (
-              <p className="text-gray-700 italic text-center">
-                BATTLE LOG WILL APPEAR HERE...
-              </p>
-            ) : (
-              displayedLogs.map((message, index) => (
-                <div key={index} className="mb-1">
-                  {message}
-                </div>
-              ))
-            )}
-          </div>
+          <BattleLog logs={displayedLogs} />
         </div>
 
         {/* Pokedex Buttons */}
